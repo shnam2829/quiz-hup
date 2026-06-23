@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학습 퀴즈 모음</title>
+<style>
+  :root{ --main:#2b7a4b; }
+  * { box-sizing:border-box; }
+  body { font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; margin:0; background:#f7f9f8; color:#222; }
+  header { background:var(--main); color:#fff; padding:36px 16px; text-align:center; }
+  header h1 { margin:0 0 8px; font-size:28px; }
+  header p { margin:0; opacity:0.9; }
+  .container { max-width:900px; margin:0 auto; padding:30px 16px; }
+  .grid { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+  @media (max-width:600px){ .grid{ grid-template-columns:1fr; } }
+  .card { display:block; background:#fff; border:1px solid #ddd; border-radius:12px; padding:24px; text-decoration:none; color:#222; transition:box-shadow .15s, transform .15s; }
+  .card:hover { box-shadow:0 6px 16px rgba(0,0,0,0.08); transform:translateY(-2px); }
+  .card .icon { font-size:32px; margin-bottom:10px; }
+  .card h2 { margin:0 0 6px; font-size:19px; color:var(--main); }
+  .card p { margin:0; font-size:13px; color:#666; }
+  .badge { display:inline-block; margin-top:10px; font-size:11px; padding:3px 8px; border-radius:10px; background:#eef6f0; color:var(--main); }
+  .badge.soon { background:#f1f1f1; color:#999; }
+  footer { text-align:center; color:#999; font-size:12px; margin:30px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📚 학습 퀴즈 모음</h1>
+  <p>과목을 선택하면 단원평가 · 모의고사 · 기출문제를 풀 수 있습니다</p>
+</header>
+<div class="container">
+  <div class="grid">
+    <a class="card" href="ai-basics/index.html">
+      <div class="icon">🤖</div>
+      <h2>인공지능 기초</h2>
+      <p>인공지능의 원리, 탐색, 지식 표현, 기계학습, 딥러닝 등</p>
+      <span class="badge">이용 가능</span>
+    </a>
+    <a class="card" href="info-curriculum/index.html">
+      <div class="icon">💻</div>
+      <h2>정보 교과 퀴즈</h2>
+      <p>정보 교과 단원별 평가 문제</p>
+      <span class="badge soon">준비 중</span>
+    </a>
+    <a class="card" href="ai-math/index.html">
+      <div class="icon">📐</div>
+      <h2>인공지능 수학</h2>
+      <p>인공지능 수학 단원별 평가 문제</p>
+      <span class="badge soon">준비 중</span>
+    </a>
+    <a class="card" href="data-science/index.html">
+      <div class="icon">📊</div>
+      <h2>데이터 과학</h2>
+      <p>데이터 과학 단원별 평가 문제</p>
+      <span class="badge soon">준비 중</span>
+    </a>
+  </div>
+</div>
+<footer>© 학습 퀴즈 모음</footer>
+</body>
+</html>

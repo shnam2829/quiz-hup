@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인공지능 기초 - 퀴즈 모음</title>
+<style>
+  :root{ --main:#2b7a4b; }
+  * { box-sizing:border-box; }
+  body { font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; margin:0; background:#f7f9f8; color:#222; }
+  header { background:var(--main); color:#fff; padding:30px 16px; text-align:center; position:relative; }
+  header h1 { margin:0 0 6px; font-size:24px; }
+  header a.back { position:absolute; left:16px; top:50%; transform:translateY(-50%); color:#fff; text-decoration:none; font-size:14px; opacity:0.9; }
+  .container { max-width:900px; margin:0 auto; padding:26px 16px; }
+  h2.section { color:var(--main); border-left:6px solid var(--main); padding-left:10px; margin-top:34px; }
+  .desc { color:#666; font-size:13px; margin:4px 0 14px 16px; }
+  .list { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:700px){ .list{ grid-template-columns:1fr; } }
+  .item { background:#fff; border:1px solid #ddd; border-radius:10px; padding:16px; }
+  .item h3 { margin:0 0 8px; font-size:15px; }
+  .item .links a { display:inline-block; margin:3px 4px 0 0; padding:6px 10px; background:var(--main); color:#fff; border-radius:6px; text-decoration:none; font-size:12px; }
+  .item .links a.secondary { background:#888; }
+  .empty { color:#999; font-size:13px; padding:14px; background:#fff; border:1px dashed #ccc; border-radius:10px; text-align:center; }
+  footer { text-align:center; color:#999; font-size:12px; margin:30px 0; }
+</style>
+</head>
+<body>
+<header>
+  <a class="back" href="../index.html">← 전체 과목</a>
+  <h1>🤖 인공지능 기초</h1>
+</header>
+<div class="container">
+
+  <h2 class="section">단원평가</h2>
+  <p class="desc">01~06단원 개념 확인 문제</p>
+  <div class="list">
+    <div class="item">
+      <h3>1~6단원 통합 평가문제</h3>
+      <div class="links">
+        <a href="unit-exam/all-quiz.html">자동채점 풀기</a>
+        <a class="secondary" href="unit-exam/all-questions.html">문제집(인쇄용)</a>
+        <a class="secondary" href="unit-exam/all-answers.html">정답해설</a>
+      </div>
+    </div>
+  </div>
+
+  <h2 class="section">모의고사</h2>
+  <p class="desc">단원 통합형 모의고사 (추가 예정)</p>
+  <div class="empty">아직 등록된 모의고사가 없습니다.</div>
+
+  <h2 class="section">기출문제</h2>
+  <p class="desc">학교/대회 기출문제 모음 (추가 예정)</p>
+  <div class="empty">아직 등록된 기출문제가 없습니다.</div>
+
+</div>
+<footer>© 인공지능 기초 퀴즈</footer>
+</body>
+</html>
