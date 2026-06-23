@@ -815,7 +815,7 @@ const QUESTIONS = [...QUESTIONS_PART1, ...QUESTIONS_PART2, ...QUESTIONS_PART3, .
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxm5gKl5eL2swMBZCfQ7x3ioHVSCKjcVvFRnw9akShjHmxABI6ZuqabwYD6ONr0jmaj/exec";
 // ▲▲▲ ────────────────────────────────────────────── ▲▲▲
 
-function submitToSheet(name, score, correctCount, total, wrongIds) {
+function submitToSheet(name, score, correctCount, total, results) {
   const statusEl = document.getElementById('submitStatus');
   if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.indexOf('PUT_YOUR_WEB_APP_URL_HERE') !== -1) {
     if (statusEl) statusEl.textContent = '※ 결과 저장 기능이 아직 설정되지 않았습니다. (관리자에게 문의)';
@@ -831,7 +831,7 @@ function submitToSheet(name, score, correctCount, total, wrongIds) {
       score: score,
       correct: correctCount,
       total: total,
-      wrongIds: wrongIds
+      results: results
     })
   }).then(() => {
     if (statusEl) statusEl.textContent = '✅ 결과가 저장되었습니다.';
@@ -1032,13 +1032,14 @@ document.getElementById('gradeBtn').addEventListener('click', () => {
 
   const name = (document.getElementById('studentName').value || '').trim();
   let correctCount = 0;
-  const wrongIds = [];
+  const results = {};
   QUESTIONS.forEach(q => {
-    if (gradeQuestion(q, state[q.id])) correctCount++;
-    else wrongIds.push(q.id);
+    const isCorrect = gradeQuestion(q, state[q.id]);
+    if (isCorrect) correctCount++;
+    results[q.id] = isCorrect ? 'O' : 'X';
   });
   const score = Math.round(correctCount / QUESTIONS.length * 100);
-  submitToSheet(name, score, correctCount, QUESTIONS.length, wrongIds);
+  submitToSheet(name, score, correctCount, QUESTIONS.length, results);
 });
 
 document.getElementById('reviewWrongBtn').addEventListener('click', () => {
