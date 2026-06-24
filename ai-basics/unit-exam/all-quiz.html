@@ -813,9 +813,10 @@ const QUESTIONS = [...QUESTIONS_PART1, ...QUESTIONS_PART2, ...QUESTIONS_PART3, .
 
 // ▼▼▼ 여기에 구글 앱스 스크립트 배포 URL을 붙여넣으세요 (가이드 참고) ▼▼▼
 const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxm5gKl5eL2swMBZCfQ7x3ioHVSCKjcVvFRnw9akShjHmxABI6ZuqabwYD6ONr0jmaj/exec";
+const QUIZ_ID = "all-quiz";
 // ▲▲▲ ────────────────────────────────────────────── ▲▲▲
 
-function submitToSheet(name, score, correctCount, total, results) {
+function submitToSheet(name, score, correctCount, total, wrongList) {
   const statusEl = document.getElementById('submitStatus');
   if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.indexOf('PUT_YOUR_WEB_APP_URL_HERE') !== -1) {
     if (statusEl) statusEl.textContent = '※ 결과 저장 기능이 아직 설정되지 않았습니다. (관리자에게 문의)';
@@ -827,11 +828,12 @@ function submitToSheet(name, score, correctCount, total, results) {
     mode: 'no-cors',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({
+      quizId: QUIZ_ID,
       name: name || '이름없음',
       score: score,
       correct: correctCount,
       total: total,
-      results: results
+      wrongList: wrongList
     })
   }).then(() => {
     if (statusEl) statusEl.textContent = '✅ 결과가 저장되었습니다.';
@@ -1032,14 +1034,15 @@ document.getElementById('gradeBtn').addEventListener('click', () => {
 
   const name = (document.getElementById('studentName').value || '').trim();
   let correctCount = 0;
-  const results = {};
-  QUESTIONS.forEach(q => {
+  const wrongNums = [];
+  QUESTIONS.forEach((q, idx) => {
     const isCorrect = gradeQuestion(q, state[q.id]);
     if (isCorrect) correctCount++;
-    results[q.id] = isCorrect ? 'O' : 'X';
+    else wrongNums.push(idx + 1);
   });
   const score = Math.round(correctCount / QUESTIONS.length * 100);
-  submitToSheet(name, score, correctCount, QUESTIONS.length, results);
+  const wrongList = wrongNums.join(',');
+  submitToSheet(name, score, correctCount, QUESTIONS.length, wrongList);
 });
 
 document.getElementById('reviewWrongBtn').addEventListener('click', () => {
