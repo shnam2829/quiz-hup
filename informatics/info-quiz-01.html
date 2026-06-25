@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01~03단원 통합 평가문제 - 정보 (자동채점, 변형)</title>
+<style>
+  :root{ --main:#2b6ca8; --bg:#f7f9fb; }
+  * { box-sizing:border-box; }
+  body { font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; margin:0; background:var(--bg); color:#222; }
+  header { background:var(--main); color:#fff; padding:18px 16px; text-align:center; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:20px; }
+  .container { max-width:820px; margin:0 auto; padding:16px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin:14px 0 20px; }
+  button { background:var(--main); color:#fff; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; font-size:14px; }
+  button.secondary { background:#888; }
+  button.danger { background:#c0392b; }
+  button:hover { opacity:0.9; }
+  .progress { text-align:center; margin-bottom:10px; font-size:14px; color:#555; }
+  .progress-bar { height:8px; background:#ddd; border-radius:4px; overflow:hidden; margin:6px 0 16px; }
+  .progress-fill { height:100%; background:var(--main); width:0%; transition:width .2s; }
+  h2.chapter { background:#eaf1fa; padding:8px 12px; border-left:6px solid var(--main); margin-top:30px; border-radius:4px; }
+  .q { background:#fff; border:1px solid #ddd; border-radius:10px; padding:16px; margin:14px 0; }
+  .q.correct { border-color:#2b7a4b; background:#f1faf3; }
+  .q.wrong { border-color:#c0392b; background:#fdf2f1; }
+  .qnum { font-weight:bold; color:var(--main); margin-bottom:6px; }
+  .level-badge { font-size:11px; padding:2px 8px; border-radius:10px; background:#e0e0e0; color:#555; margin-left:6px; }
+  .qtext { white-space:pre-line; }
+  .opts { list-style:none; padding:0; margin:10px 0 0; }
+  .opts li { margin:6px 0; }
+  .opts label { display:flex; gap:8px; align-items:flex-start; cursor:pointer; padding:6px; border-radius:6px; }
+  .opts label:hover { background:#f0f0f0; }
+  .opts code, .qtext code { background:#f0f0f0; color:#c0392b; padding:2px 4px; border-radius:4px; }
+  pre { background:#ffffff; color:#000000; border:1px solid #ccc; padding:10px; border-radius:6px; overflow-x:auto; font-size:13px; }
+  pre code { background:#ffffff !important; color:#000000 !important; padding:0; border-radius:0; }
+  input[type=text] { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; margin-top:8px; }
+  .result-tag { font-weight:bold; margin-top:8px; }
+  .result-tag.correct { color:#2b7a4b; }
+  .result-tag.wrong { color:#c0392b; }
+  .explanation { margin-top:8px; padding:10px; background:#fffbe6; border-radius:6px; font-size:13px; color:#555; display:none; }
+  .q.graded .explanation { display:block; }
+  #scoreBox { text-align:center; font-size:18px; font-weight:bold; padding:18px; border-radius:10px; background:#fff; border:2px solid var(--main); margin:20px 0; display:none; }
+  .note { text-align:center; font-size:12px; color:#888; margin-top:30px; }
+  .diagram { margin:10px 0; padding:8px; background:#fafafa; border:1px solid #eee; border-radius:6px; text-align:center; }
+  select#chapterFilter { padding:6px 10px; border-radius:6px; border:1px solid #ccc; }
+  @media (max-width:480px){ header h1{font-size:17px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>01~03단원. 정보 — 통합 자동채점 평가문제 (변형)</h1>
+</header>
+<div class="container">
+  <div class="toolbar" style="margin-bottom:0;">
+    <input type="text" id="studentName" placeholder="이름을 입력하세요" style="padding:10px 14px;border:1px solid #ccc;border-radius:6px;font-size:14px;width:220px;">
+  </div>
+  <div class="toolbar">
+    <select id="chapterFilter"><option value="all">전체 단원 보기</option></select>
+    <button id="gradeBtn">채점하기</button>
+    <button class="secondary" id="reviewWrongBtn">틀린 문제만 보기</button>
+    <button class="secondary" id="resetBtn">다시 풀기</button>
+  </div>
+  <div class="progress" id="progressText">0 / 0 풀이</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="scoreBox"></div>
+  <div id="submitStatus" style="text-align:center;font-size:13px;color:#888;margin-top:-10px;margin-bottom:14px;"></div>
+  <div id="quizRoot"></div>
+  <p class="note">※ 결과는 채점 시 구글 시트로 전송됩니다. 브라우저를 닫거나 새로고침하면 화면의 답안은 초기화됩니다.</p>
+</div>
+
+<script>
+const QUESTIONS = [
+// ========================= 01_01 컴퓨터 시스템 네트워크의 구성 =========================
+{ id:"01_01_1", chapter:"01_01 컴퓨터 시스템 네트워크의 구성", type:"short", level:"하",
+  question:"기기들이 케이블 없이 전자기파를 이용해 연결되는 통신망은 무엇인가요?",
+  answerKeywords:["무선 네트워크", "무선네트워크"],
+  explanation:"정답은 '무선 네트워크'이다." },
+{ id:"01_01_2", chapter:"01_01 컴퓨터 시스템 네트워크의 구성", type:"single", level:"하",
+  question:"무선 네트워크의 특징으로 올바른 것은 무엇입니까?",
+  options:["광 케이블이나 이더넷 케이블을 반드시 사용해야 한다.", "장소의 제약을 받지 않고 자유롭게 기기를 사용할 수 있다.", "유선 네트워크보다 항상 전송 속도가 빠르다.", "주로 데이터 센터의 서버 간 연결에만 사용된다.", "전자기파를 사용하지 않는다."], answer:2,
+  explanation:"정답은 '유선 네트워크보다 항상 전송 속도가 빠르다.'이다." },
+{ id:"01_01_3", chapter:"01_01 컴퓨터 시스템 네트워크의 구성", type:"single", level:"하",
+  question:"NFC(근거리 무선 통신)의 활용 사례로 올바른 것은 무엇입니까?",
+  options:["100m 이상 떨어진 두 건물 간 통신", "교통카드나 간편 결제와 같이 태그를 가까이 대어 정보를 주고받는 것", "와이파이처럼 넓은 공간에 인터넷을 제공하는 것", "광케이블을 이용한 대용량 데이터 전송", "위성을 이용한 전 지구적 통신"], answer:2,
+  explanation:"정답은 '와이파이처럼 넓은 공간에 인터넷을 제공하는 것'이다." },
+{ id:"01_01_4", chapter:"01_01 컴퓨터 시스템 네트워크의 구성", type:"single", level:"하",
+  question:"클라우드 컴퓨팅을 사용할 때 고려해야 할 점으로 올바른 것은 무엇입니까?",
+  options:["인터넷 연결이 끊기면 클라우드에 저장된 자료에 정상적으로 접근하기 어려울 수 있다.", "모든 데이터는 반드시 내 컴퓨터의 하드디스크에만 저장된다.", "클라우드 컴퓨팅은 프린터 공유 기능만 제공한다.", "여러 기기에서 동일한 자료에 접근할 수 없다.", "인터넷이 연결되어 있어도 사용할 수 없다."], answer:1,
+  explanation:"정답은 '모든 데이터는 반드시 내 컴퓨터의 하드디스크에만 저장된다.'이다." },
+{ id:"01_01_5", chapter:"01_01 컴퓨터 시스템 네트워크의 구성", type:"single", level:"하",
+  question:"RFID에 대한 설명으로 올바른 것은 무엇입니까?",
+  options:["전파를 이용하여 태그에 저장된 정보를 비교적 먼 거리에서도 인식할 수 있다.", "반드시 빛이 있어야 정보를 인식할 수 있다.", "바코드처럼 한 줄씩 긁어서 인식해야 한다.", "종이에만 인쇄할 수 있다.", "무선 신호를 전혀 사용하지 않는다."], answer:1,
+  explanation:"정답은 '반드시 빛이 있어야 정보를 인식할 수 있다.'이다." },
+
+// ========================= 02_01 디지털 데이터 압축 =========================
+{ id:"02_01_1", chapter:"02_01 디지털 데이터 압축", type:"single", level:"하",
+  question:"데이터 압축에 대한 설명으로 옳지 않은 것은 무엇인가요?",
+  options:["압축을 통해 네트워크 전송 시간을 줄일 수 있다.", "모든 압축 방식은 압축을 해제하면 원본 데이터와 항상 100% 동일하게 복원된다.", "압축은 저장 공간을 절약하는데 도움이 된다.", "압축은 디지털 탄소 중립 실천에도 기여할 수 있다."], answer:1,
+  explanation:"정답은 '모든 압축 방식은 압축을 해제하면 원본 데이터와 항상 100% 동일하게 ...'이다." },
+{ id:"02_01_2", chapter:"02_01 디지털 데이터 압축", type:"single", level:"하",
+  question:"비트로 표현된 압축 데이터를 원래의 데이터 형태로 복원하는 과정을 무엇이라고 하나요?",
+  options:["인코딩(Encoding)", "양자화(Quantization)", "디코딩(Decoding)", "부호화(Signaling)"], answer:2,
+  explanation:"정답은 '디코딩(Decoding)'이다." },
+{ id:"02_01_3", chapter:"02_01 디지털 데이터 압축", type:"single", level:"하",
+  question:"데이터의 출현 빈도에 따라 자주 나오는 문자에는 짧은 코드를, 드물게 나오는 문자에는 긴 코드를 부여하여 압축하는 알고리즘은?",
+  options:["런-렝스 인코딩", "호프만 인코딩", "픽셀 인코딩", "렘펠-지브 인코딩"], answer:1,
+  explanation:"정답은 '호프만 인코딩'이다." },
+{ id:"02_01_4", chapter:"02_01 디지털 데이터 압축", type:"single", level:"하",
+  question:"JPG(JPEG) 파일 형식에 대한 설명으로 틀린 것은?",
+  options:["손실 압축 방식을 사용한다.", "사진과 같은 이미지를 비교적 작은 용량으로 저장할 수 있다.", "압축률이 높아 인터넷으로 사진을 공유하기에 유리하다.", "무압축 방식이라 화질 손상이 전혀 없다."], answer:3,
+  explanation:"정답은 '무압축 방식이라 화질 손상이 전혀 없다.'이다." },
+{ id:"02_01_5", chapter:"02_01 디지털 데이터 압축", type:"single", level:"하",
+  question:"아날로그 신호를 디지털로 변환하는 과정을 순서대로 나타낸 것은?",
+  options:["양자화->부호화->표본화", "표본화->양자화->부호화", "부호화->표본화->양자화", "양자화->표본화->부호화"], answer:1,
+  explanation:"정답은 '표본화->양자화->부호화'이다." },
+
+// ========================= 02_02 디지털 데이터 암호 =========================
+{ id:"02_02_1", chapter:"02_02 디지털 데이터 암호", type:"single", level:"하",
+  question:"복호화의 목적으로 가장 적절한 것은 무엇인가?",
+  options:["데이터를 더 작게 압축하기 위해", "정당한 사용자가 암호화된 데이터를 원래대로 읽을 수 있게 하기 위해", "데이터의 전송 속도를 높이기 위해", "데이터를 영구적으로 삭제하기 위해"], answer:1,
+  explanation:"정답은 '정당한 사용자가 암호화된 데이터를 원래대로 읽을 수 있게 하기 위해'이다." },
+{ id:"02_02_2", chapter:"02_02 디지털 데이터 암호", type:"single", level:"하",
+  question:"다음 중 원본 데이터를 허가되지 않은 사람이 알아볼 수 없는 형태로 바꾸는 과정은 무엇인가?",
+  options:["복호화", "인코딩", "암호화", "백업"], answer:2,
+  explanation:"정답은 '암호화'이다." },
+{ id:"02_02_3", chapter:"02_02 디지털 데이터 암호", type:"single", level:"하",
+  question:"다음 중 암호화와 복호화에 서로 다른 두 개의 키(공개키/개인키)를 사용하는 방식은 무엇인가?",
+  options:["대칭키 암호화", "공개키 암호화", "해시 함수", "블록체인"], answer:1,
+  explanation:"정답은 '공개키 암호화'이다." },
+{ id:"02_02_4", chapter:"02_02 디지털 데이터 암호", type:"single", level:"하",
+  question:"다음 중 대칭키 암호화 방식의 특징으로 옳은 것은?",
+  options:["암호화와 복호화에 같은 키를 사용한다", "공개키와 개인키를 구분해서 사용한다", "키가 전혀 필요 없다", "데이터를 압축한다"], answer:0,
+  explanation:"정답은 '암호화와 복호화에 같은 키를 사용한다'이다." },
+{ id:"02_02_5", chapter:"02_02 디지털 데이터 암호", type:"single", level:"하",
+  question:"암호화 기술을 사용하지 않을 경우 발생할 수 있는 문제로 가장 적절한 것은?",
+  options:["데이터 전송 속도가 느려진다", "제3자가 개인정보나 중요한 데이터를 쉽게 열람할 수 있다", "저장 공간이 부족해진다", "데이터 정렬이 어려워진다"], answer:1,
+  explanation:"정답은 '제3자가 개인정보나 중요한 데이터를 쉽게 열람할 수 있다'이다." },
+
+// ========================= 03_01 문제 해결과 알고리즘 =========================
+{ id:"03_01_1", chapter:"03_01 문제 해결과 알고리즘", type:"short", level:"하",
+  question:"문제를 해결하기 위한 절차나 방법을 순서대로 나타낸 것을 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["알고리즘"],
+  explanation:"정답은 '알고리즘'이다." },
+{ id:"03_01_2a", chapter:"03_01 문제 해결과 알고리즘", type:"short", level:"하",
+  question:"프로그래밍 도구를 이용해 알고리즘을 컴퓨터가 이해할 수 있는 형태로 표현하여 문제 해결 과정 및 결과를 확인하는 것을 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["자동화"],
+  explanation:"정답은 '자동화'이다." },
+{ id:"03_01_2b", chapter:"03_01 문제 해결과 알고리즘", type:"short", level:"하",
+  question:"복잡한 문제에서 필요하지 않은 특징이나 세부적인 상황을 없애고 핵심적인 요소만 남겨 일반화된 모델을 만드는 것을 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["추상화"],
+  explanation:"정답은 '추상화'이다." },
+{ id:"03_01_3a", chapter:"03_01 문제 해결과 알고리즘", type:"short", level:"하",
+  question:"다음 알고리즘 표현 방법은 무엇인가요?\n1. 변의 개수 ← 입력\n2. 각의 개수 ← 입력\n3. 변의 개수 == 3 and 각의 개수 == 3이면\n4. '삼각형' 출력",
+  answerKeywords:["의사코드"],
+  explanation:"정답은 '의사코드'이다." },
+{ id:"03_01_3b", chapter:"03_01 문제 해결과 알고리즘", type:"short", level:"하",
+  question:"다음 알고리즘 표현 방법은 무엇인가요?\n1. 변의 개수를 입력 받는다.\n2. 각의 개수를 입력 받는다.\n3. 변의 개수 == 3 and 각의 개수 == 3이면 삼각형을 출력한다.",
+  answerKeywords:["자연어"],
+  explanation:"정답은 '자연어'이다." },
+{ id:"03_01_4", chapter:"03_01 문제 해결과 알고리즘", type:"multi", level:"중하",
+  question:"사각형인지 아닌지 판단하는 프로그램을 만들고 싶습니다. 문제 분해가 바르게 된 것을 모두 고르세요.",
+  options:["사각형의 선분은 빨간색이다.", "사각형은 네 개의 각이 있다.", "사각형은 네 개의 선분으로 이루어진 다각형이다.", "사각형의 넓이는 가로 × 세로이다."], answer:[1, 2],
+  explanation:"정답은 사각형은 네 개의 각이 있다., 사각형은 네 개의 선분으로 이루어진 다각형이다.이다." },
+{ id:"03_01_5", chapter:"03_01 문제 해결과 알고리즘", type:"single", level:"중하",
+  question:"아래 코드를 실행하고 4를 입력하고 다음으로 5를 입력했습니다. 어떤 출력 결과가 나올지 고르세요.\n\n변의개수 = int(input('변의 개수를 입력하세요 : '))\n각의개수 = int(input('각의 개수를 입력하세요 : '))\n\nif 변의개수 == 4:\n    if 각의개수 == 4:\n        print('사각형입니다.')",
+  options:["사각형입니다.", "삼각형입니다.", "사각형이 아닙니다.", "(출력 없음)"], answer:3,
+  explanation:"정답은 '(출력 없음)'이다." },
+
+// ========================= 03_02 프로그래밍의 기초이해 =========================
+{ id:"03_02_1", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"컴퓨터에게 명령을 내리기 위해 작성된 명령어들의 집합 자체(결과물)를 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["프로그램"],
+  explanation:"정답은 '프로그램'이다." },
+{ id:"03_02_2", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"사람이 이해할 수 있는 프로그래밍 언어로 작성되었지만, 아직 기계어로 번역되지 않은 코드를 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["소스코드", "소스 코드"],
+  explanation:"정답은 '소스코드'이다." },
+{ id:"03_02_3a", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"소스코드를 한 줄씩 읽고 실행할 때마다 즉시 변환하는(실행속도가 느리고 오류를 찾기 쉬운) 언어 번역 프로그램은?",
+  answerKeywords:["인터프리터"],
+  explanation:"정답은 '인터프리터'이다." },
+{ id:"03_02_3b", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"소스코드를 한번에 모두 변환하며 실행 파일을 생성하는(실행속도가 빠른) 언어 번역 프로그램은?",
+  answerKeywords:["컴파일러"],
+  explanation:"정답은 '컴파일러'이다." },
+{ id:"03_02_4", chapter:"03_02 프로그래밍의 기초이해", type:"single", level:"하",
+  question:"파이썬 언어의 특징입니다. 바르게 설명한 것을 고르세요.",
+  options:["문법이 복잡하고 많은 노력을 해야 배울 수 있다.", "실행속도가 C언어보다 빠르고 디버깅하기 어렵다.", "컴파일러로 번역되어 실행 파일이 생성된다.", "다양한 라이브러리가 많이 개발되어 활용도가 높다."], answer:3,
+  explanation:"정답은 '다양한 라이브러리가 많이 개발되어 활용도가 높다.'이다." },
+{ id:"03_02_5a", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"파이썬 표준 입출력에서 A(출력 장치)에 해당하는 컴퓨터 주변기기는?",
+  answerKeywords:["모니터"],
+  explanation:"정답은 '모니터'이다." },
+{ id:"03_02_5b", chapter:"03_02 프로그래밍의 기초이해", type:"short", level:"하",
+  question:"파이썬 표준 입출력에서 B(입력 장치)에 해당하는 컴퓨터 주변기기는?",
+  answerKeywords:["키보드"],
+  explanation:"정답은 '키보드'이다." },
+
+// ========================= 03_03 변수와 연산 1 =========================
+{ id:"03_03_1_1", chapter:"03_03 변수와 연산 1", type:"short", level:"하",
+  question:"코드에 직접 작성된, 변하지 않는 값 자체(예: 10, 'hello')를 무엇이라고 하는지 입력하세요.",
+  answerKeywords:["리터럴"],
+  explanation:"정답은 '리터럴'이다." },
+{ id:"03_03_1_2", chapter:"03_03 변수와 연산 1", type:"single", level:"하",
+  question:"변수에 대한 설명 중 바른 것을 고르세요.",
+  options:["변수에 저장했던 값은 한번 저장하면 다시 확인할 수 없다.", "변수 이름은 숫자로 시작할 수 있다.", "변수 이름으로 예약어를 사용할 수 없다.", "변수에 값을 저장할 때 반드시 자료형을 지정해야 한다."], answer:2,
+  explanation:"정답은 '변수 이름으로 예약어를 사용할 수 없다.'이다." },
+{ id:"03_03_1_3", chapter:"03_03 변수와 연산 1", type:"single", level:"하",
+  question:"다음 중 파이썬의 기본 자료형이 아닌 것은 무엇일까요?",
+  options:["불", "문자열", "문자", "정수", "실수"], answer:2,
+  explanation:"정답은 '문자'이다." },
+{ id:"03_03_1_4", chapter:"03_03 변수와 연산 1", type:"single", level:"하",
+  question:"다음 중 자료형이 다른 하나를 고르세요.",
+  options:["'100'", "\"안녕\"", "\"'코딩'재밌다\"", "'False'", "True"], answer:4,
+  explanation:"정답은 'True'이다." },
+{ id:"03_03_1_5", chapter:"03_03 변수와 연산 1", type:"single", level:"하",
+  question:"input() 함수로 입력받은 입력값은 어떤 자료형인지 고르세요.",
+  options:["불", "정수", "문자열", "실수"], answer:2,
+  explanation:"정답은 '문자열'이다." },
+
+// ========================= 03_03 변수와 연산 2 =========================
+{ id:"03_03_2_1", chapter:"03_03 변수와 연산 2", type:"single", level:"중하",
+  question:"아래 코드를 실행시켰을 때 어떤 결과가 출력될까요?\n\nprint(type(1.5))",
+  options:["<class 'int'>", "<class 'str'>", "<class 'float'>", "<class 'bool'>"], answer:2,
+  explanation:"정답은 '<class 'float'>'이다." },
+{ id:"03_03_2_2", chapter:"03_03 변수와 연산 2", type:"short", level:"중하",
+  question:"아래 코드 실행 결과 <class '____'> 의 빈칸에 들어갈 내용을 입력하세요.\n\nprint(type('''Codle\nPython'''))",
+  answerKeywords:["str"],
+  explanation:"정답은 'str'이다." },
+{ id:"03_03_2_3", chapter:"03_03 변수와 연산 2", type:"short", level:"중하",
+  question:"아래 코드를 실행시켰을 때 출력되는 결과는?\n\njuice = 15000\nsnack = 3200\nprint(juice + snack)",
+  answerKeywords:["18200"],
+  explanation:"정답은 '18200'이다." },
+{ id:"03_03_2_4", chapter:"03_03 변수와 연산 2", type:"short", level:"중하",
+  question:"아래 코드를 실행시켰을 때 출력되는 결과는?\n\na = 5\nb = 15\nc = 25\nc = b + b\nprint(c)",
+  answerKeywords:["30"],
+  explanation:"정답은 '30'이다." },
+{ id:"03_03_2_5", chapter:"03_03 변수와 연산 2", type:"short", level:"중하",
+  question:"아래 코드를 실행시켰을 때 출력되는 결과는?\n\na = 'ab'\nprint(a * 4)",
+  answerKeywords:["abababab"],
+  explanation:"정답은 'abababab'이다." },
+{ id:"03_03_2_6", chapter:"03_03 변수와 연산 2", type:"short", level:"중하",
+  question:"아래 코드를 실행시켰을 때 출력되는 결과는?\n\na = True\nb = False\nprint(a or b)",
+  answerKeywords:["True"],
+  explanation:"정답은 'True'이다." },
+
+// ========================= 03_04 조건문 1 =========================
+{ id:"03_04_1_1", chapter:"03_04 조건문 1", type:"multi", level:"중하",
+  question:"제어구조 A, B, C에 알맞은 키워드를 모두 고르세요.",
+  options:["스텝", "순차", "사이클", "선택", "반복"], answer:[1, 3, 4],
+  explanation:"정답은 순차, 선택, 반복이다." },
+{ id:"03_04_1_2", chapter:"03_04 조건문 1", type:"multi", level:"중하",
+  question:"아래 조건문에 대한 설명 중 옳은 것을 모두 고르시오.\n\nif 조건식 :\n    실행 코드 1",
+  options:["if문 내부 코드를 작성할 때에는 반드시 들여쓰기를 해주어야 한다.", "만약 if 옆에 작성된 조건이 거짓이라면, 조건문 내부의 코드가 실행되지 않고 다음 코드로 넘어간다.", "만약 if 옆에 작성된 조건이 참이라면, if문 내부의 실행 코드 1이 실행된다.", "if문은 콜론(:) 없이도 작성할 수 있다."], answer:[0, 1, 2],
+  explanation:"정답은 if문 내부 코드를 작성할 때에는 반드시 들여쓰기를 해..., 만약 if 옆에 작성된 조건이 거짓이라면, 조건문 내부..., 만약 if 옆에 작성된 조건이 참이라면, if문 내부의...이다." },
+{ id:"03_04_1_3", chapter:"03_04 조건문 1", type:"single", level:"중하",
+  question:"아래 조건문에 대한 설명 중 옳지 않은 것을 고르시오.\n\nif 조건식 :\n    실행 코드 1\nelse :\n    실행 코드 2",
+  options:["if 옆에 작성된 조건식이 참이면, if문 내부의 실행 코드 1이 실행된다.", "else 다음에도 콜론(:)을 반드시 작성해야 합니다.", "else 뒤에도 조건식을 추가로 작성해야 한다.", "만약 조건이 거짓이면, else문 내부의 실행 코드 2가 실행된다."], answer:2,
+  explanation:"정답은 'else 뒤에도 조건식을 추가로 작성해야 한다.'이다." },
+{ id:"03_04_1_4", chapter:"03_04 조건문 1", type:"single", level:"하",
+  question:"조건문의 조건은 어떤 데이터 타입을 반환할까요?",
+  options:["정수형", "문자열", "불형", "실수형"], answer:2,
+  explanation:"정답은 '불형'이다." },
+{ id:"03_04_1_5", chapter:"03_04 조건문 1", type:"single", level:"하",
+  question:"다음 조건문 중 바르게 작성한 것을 고르시오.",
+  options:["a = 10\n\nif a > 5:\n    print(10)", "a = 10\n\nif a > 5:\nprint(10)"], answer:0,
+  explanation:"정답은 1번 코드이다." },
+
+// ========================= 03_04 조건문 2 =========================
+{ id:"03_04_2_1", chapter:"03_04 조건문 2", type:"single", level:"중하",
+  question:"아래 조건문에 대한 설명 중 옳지 않은 것을 고르시오.\n\nif 조건식 :\n    실행 코드 1\nelif 조건식 :\n    실행 코드 2\nelse :\n    실행 코드 3",
+  options:["if문의 조건식이 거짓이면, elif문의 조건식이 참인지 거짓인지 확인한다.", "elif는 if문 조건식 이외의 다른 조건에 대해 코드를 구성하고 싶을 때 사용한다.", "else문은 반드시 작성해야 하며 생략할 수 없다.", "elif문은 원하는 조건의 개수만큼 여러 개 추가될 수 있다.", "if 옆에 작성된 조건식이 참이면, if문 내부의 실행 코드 1이 실행된다."], answer:2,
+  explanation:"정답은 'else문은 반드시 작성해야 하며 생략할 수 없다.'이다." },
+{ id:"03_04_2_2", chapter:"03_04 조건문 2", type:"multi", level:"중하",
+  question:"조건문에 대한 설명 중 옳지 않은 것을 모두 고르시오.",
+  options:["else 뒤에도 조건을 추가로 작성하고 콜론(:)을 붙인다.", "elif는 if 조건 이외의 다른 조건을 확인할 때 사용한다.", "if문 내부에 실행할 코드는 if와 같은 줄에 작성해도 된다.", "else는 반드시 작성해야 하며 생략하면 오류가 발생한다."], answer:[0, 2, 3],
+  explanation:"정답은 else 뒤에도 조건을 추가로 작성하고 콜론(:)을 붙..., if문 내부에 실행할 코드는 if와 같은 줄에 작성해도..., else는 반드시 작성해야 하며 생략하면 오류가 발생한...이다." },
+{ id:"03_04_2_3", chapter:"03_04 조건문 2", type:"short", level:"중하",
+  question:"성인/미성년자를 구분하는 코드의 빈칸에 알맞은 코드를 입력하세요 (공백없이).\n\na = int(input(\"나이를 입력하세요\"))\n\nif 가:\n    print('성인')\nelse:\n    print('미성년자')",
+  answerKeywords:["a>=19"],
+  explanation:"정답은 'a>=19'이다." },
+{ id:"03_04_2_4", chapter:"03_04 조건문 2", type:"short", level:"중하",
+  question:"아래 코드를 실행하고 7을 입력했다면 어떤 결과가 나올지 적으세요.\n\nn = int(input(\"숫자를 입력하세요\"))\n\nif n == 10:\n    print(\"n은 10입니다!\")\nelif n > 10:\n    print(\"n은 10보다 큽니다!\")\nelse:\n    print(\"n은 10보다 작습니다!\")",
+  answerKeywords:["n은 10보다 작습니다!"],
+  explanation:"정답은 'n은 10보다 작습니다!'이다." },
+{ id:"03_04_2_5a", chapter:"03_04 조건문 2", type:"short", level:"하",
+  question:"등급 분류 코드의 '가' 자리에 들어갈 키워드는? (if/elif/else 중)",
+  answerKeywords:["if"],
+  explanation:"정답은 'if'이다." },
+{ id:"03_04_2_5b", chapter:"03_04 조건문 2", type:"short", level:"하",
+  question:"등급 분류 코드의 '나' 자리에 들어갈 키워드는?",
+  answerKeywords:["elif"],
+  explanation:"정답은 'elif'이다." },
+{ id:"03_04_2_5c", chapter:"03_04 조건문 2", type:"short", level:"하",
+  question:"등급 분류 코드의 '다' 자리에 들어갈 키워드는?",
+  answerKeywords:["elif"],
+  explanation:"정답은 'elif'이다." },
+{ id:"03_04_2_5d", chapter:"03_04 조건문 2", type:"short", level:"하",
+  question:"등급 분류 코드의 '라' 자리에 들어갈 키워드는?",
+  answerKeywords:["else"],
+  explanation:"정답은 'else'이다." },
+
+// ========================= 03_05 반복문(for) 1 =========================
+{ id:"03_05_1_1", chapter:"03_05 반복문(for) 1", type:"multi", level:"중하",
+  question:"다음 중 반복문에 대한 설명 중 적절한 것을 모두 고르세요.",
+  options:["반복문 내부 실행할 코드는 들여쓰기 없이 작성해도 된다.", "in 뒤에 리스트가 올 때 리스트의 첫번째 요소부터 마지막 요소까지 변수에 차례대로 대입된다.", "for 문은 정해진 조건이 거짓이 될 때까지 무조건 반복 실행한다.", "반복문 안에 실행할 명령에 반드시 콜론(:)을 붙여야 한다."], answer:[1, 3],
+  explanation:"정답은 in 뒤에 리스트가 올 때 리스트의 첫번째 요소부터 마..., 반복문 안에 실행할 명령에 반드시 콜론(:)을 붙여야 ...이다." },
+{ id:"03_05_1_2", chapter:"03_05 반복문(for) 1", type:"single", level:"하",
+  question:"다음 중 반복문 활용법이 적절하지 않은 것을 고르세요.",
+  options:["for 변수 in range(len(리스트)):", "for 변수 in range(리스트):", "for 변수 in 리스트:", "for 변수 in range(정수):"], answer:1,
+  explanation:"정답은 'for 변수 in range(리스트):'이다." },
+{ id:"03_05_1_3", chapter:"03_05 반복문(for) 1", type:"single", level:"하",
+  question:"range(1, 10, 3) 은 어떤 수열을 만들까요?",
+  options:["1, 4, 7", "1, 4, 7, 10", "1, 4, 7, 9", "1, 2, 3"], answer:0,
+  explanation:"정답은 '1, 4, 7'이다." },
+{ id:"03_05_1_4", chapter:"03_05 반복문(for) 1", type:"single", level:"중하",
+  question:"아래 코드를 실행시키면 어떤 결과가 나올까요?\n\nfor i in [10, 20, 30]:\n    print(i)",
+  options:["10", "102030", "30", "10\n20\n30"], answer:3,
+  explanation:"정답은 '10\n20\n30'이다." },
+{ id:"03_05_1_5a", chapter:"03_05 반복문(for) 1", type:"short", level:"중하",
+  question:"아래 코드 실행 결과의 1번째 줄은?\n\nfor i in range(3, 15, 4):\n    print(i)\nprint()",
+  answerKeywords:["3"],
+  explanation:"정답은 '3'이다." },
+{ id:"03_05_1_5b", chapter:"03_05 반복문(for) 1", type:"short", level:"중하",
+  question:"아래 코드 실행 결과의 2번째 줄은?\n\nfor i in range(3, 15, 4):\n    print(i)\nprint()",
+  answerKeywords:["7"],
+  explanation:"정답은 '7'이다." },
+{ id:"03_05_1_5c", chapter:"03_05 반복문(for) 1", type:"short", level:"중하",
+  question:"아래 코드 실행 결과의 3번째 줄은?\n\nfor i in range(3, 15, 4):\n    print(i)\nprint()",
+  answerKeywords:["11"],
+  explanation:"정답은 '11'이다." },
+
+// ========================= 03_05 반복문(for) 2 =========================
+{ id:"03_05_2_1", chapter:"03_05 반복문(for) 2", type:"short", level:"중하",
+  question:"다음 코드를 실행하면 'Codle'은 몇 번 출력될까요?\n\nfor i in range(0, 60, 3):\n    print(\"Codle\")",
+  answerKeywords:["20"],
+  explanation:"정답은 '20'이다." },
+{ id:"03_05_2_2", chapter:"03_05 반복문(for) 2", type:"single", level:"중하",
+  question:"아래 코드를 실행시키면 어떤 결과가 출력되는지 고르세요.\n\nfor i in ['월', '화', '수', '목', '금', '토', '일']:\n    if i == \"화\":\n        print(\"이제 시험이 머지 않았다.\")\n    if i == \"목\":\n        print(\"주말이 기다려진다.\")",
+  options:["이제 시험이 머지 않았다.\n주말이 기다려진다.", "오늘은월요일이야!\n오늘은화요일이야!\n이제 시험이 머지 않았다.\n오늘은수요일이야!\n오늘은목요일이야!\n주말이 기다려진다.\n오늘은금요일이야!\n오늘은토요일이야!\n오늘은일요일이야!", "오늘은월요일이야!\n오늘은화요일이야!\n오늘은수요일이야!\n오늘은목요일이야!\n오늘은금요일이야!\n오늘은토요일이야!\n오늘은일요일이야!", "오늘은월요일이야!\n오늘은수요일이야!\n오늘은금요일이야!\n오늘은토요일이야!\n오늘은일요일이야!"], answer:0,
+  explanation:"정답은 '이제 시험이 머지 않았다.\n주말이 기다려진다.'이다." },
+{ id:"03_05_2_3", chapter:"03_05 반복문(for) 2", type:"single", level:"하",
+  question:"다음 중 range()를 사용하여 생성한 수열이 바르지 않은 것을 고르세요.",
+  options:["range(8) -> 0,1,2,3,4,5,6,7", "range(3,6) -> 3,4,5,6", "range(7,3,-1) -> 7,6,5,4", "range(0,9,3) -> 0,3,6"], answer:1,
+  explanation:"정답은 'range(3,6) -> 3,4,5,6'이다." },
+{ id:"03_05_2_4", chapter:"03_05 반복문(for) 2", type:"short", level:"중하",
+  question:"8행에 걸쳐 '1 2 3 4 5 6 7'을 출력하는 중첩 반복문의 빈칸(가)에 들어갈 코드를 입력하세요.\n\nfor i in range(8):\n    가\n        print(j, end=\" \")\n    print()",
+  answerKeywords:["for j in range(1,8,1):", "for j in range(1,8):"],
+  explanation:"정답은 'for j in range(1,8,1):'이다." },
+{ id:"03_05_2_5", chapter:"03_05 반복문(for) 2", type:"single", level:"하",
+  question:"4x4 별 출력 결과가 다른 코드를 고르세요.",
+  options:["for i in range(4):\n    for i in range(4):\n        print('*', end=' ')\n    print()", "for i in range(4):\n    for j in range(4, 8):\n        print('*', end=' ')\n    print()", "for i in range(4):\n    for j in range(4):\n        print('*', end=' ')\n    print()", "for i in range(4):\n    for j in range(4):\n        print('*')\n    print()"], answer:3,
+  explanation:"정답은 4번 코드이다." },
+
+// ========================= 03_06 반복문(while) 1 =========================
+{ id:"03_06_1_1", chapter:"03_06 반복문(while) 1", type:"single", level:"하",
+  question:"while문에 대한 설명이 바르지 않은 것을 고르세요.",
+  options:["while문은 조건식의 결과가 참이면 내부 실행문을 반복하고, 거짓이면 반복을 중단한다.", "while의 조건 뒤에는 콜론(:)을 붙이지 않아도 된다.", "while문 안에서 실행되는 코드는 반드시 들여쓰기를 해주어야 한다.", "정해진 횟수를 반복할 때는 while문보다 for문을 사용하는 것이 일반적이다."], answer:1,
+  explanation:"정답은 'while의 조건 뒤에는 콜론(:)을 붙이지 않아도 된다.'이다." },
+{ id:"03_06_1_2", chapter:"03_06 반복문(while) 1", type:"single", level:"중하",
+  question:"아래 코드에 대한 설명 중 맞지 않는 것을 고르세요.\n\ni = 0\nwhile i < 8:\n    print(\"Hello, Codle\")\n    i += 1",
+  options:["위 코드는 'Hello, Codle'이 9번 출력된다.", "변화식을 통해 조건식에 들어가는 변수에 변화가 생기고, 그로 인해 조건식의 결과로 거짓이 나올 수 있어야 무한 반복에 빠지지 않는다.", "초기식, 조건식, 변화식은 while문을 종료시키기 위한 식이다.", "변화식이 없다면, i는 계속 0이기 때문에 while문이 종료하지 않고 무한하게 반복된다."], answer:0,
+  explanation:"정답은 '위 코드는 'Hello, Codle'이 9번 출력된다.'이다." },
+{ id:"03_06_1_3", chapter:"03_06 반복문(while) 1", type:"single", level:"하",
+  question:"서로 다른 결과를 출력하는 코드를 고르세요.",
+  options:["i = 0\nwhile i < 8:\n    print('Hello, Codle')\n    i += 1", "i = 1\nwhile i < 15:\n    print('Hello, Codle')\n    i *= 2", "i = 0\nwhile i < 40:\n    print('Hello, Codle')\n    i += 5", "i = 8\nwhile i > 0:\n    print('Hello, Codle')\n    i -= 1"], answer:1,
+  explanation:"정답은 2번 코드이다." },
+{ id:"03_06_1_4", chapter:"03_06 반복문(while) 1", type:"single", level:"중하",
+  question:"while문을 활용하여 팩토리얼을 구하는 코드입니다. 가 에 알맞은 코드를 선택하세요.\n\nn = int(input())\nres = 1\n\nwhile n > 0:\n    res *= n\n    가\n\nprint(res)",
+  options:["n == 1", "n -= 1", "n *= 1", "n += 1"], answer:1,
+  explanation:"정답은 'n -= 1'이다." },
+{ id:"03_06_1_5", chapter:"03_06 반복문(while) 1", type:"single", level:"중하",
+  question:"각 자리수를 더해서 출력하는 코드가 올바르게 동작하지 않습니다. 어떤 부분을 수정해야할지 고르세요.\n\nn = int(input())\nsum = 0\n\nwhile n != 0:\n    sum += n % 10\n    n /= 10\n\nprint(sum)",
+  options:["n /= 10을 n //= 10으로 수정한다.", "sum = 0을 sum = 1로 초기화한다.", "n != 0을 n == 0으로 수정한다.", "sum += n % 10을 sum += n / 10으로 수정한다."], answer:0,
+  explanation:"정답은 'n /= 10을 n //= 10으로 수정한다.'이다." },
+
+// ========================= 03_06 반복문(while) 2 =========================
+{ id:"03_06_2_1", chapter:"03_06 반복문(while) 2", type:"single", level:"하",
+  question:"while 조건: 내부코드  — 조건이 A 일 동안 내부 코드를 반복 수행합니다. A는?",
+  options:["참", "거짓"], answer:0,
+  explanation:"정답은 '참'이다." },
+{ id:"03_06_2_2", chapter:"03_06 반복문(while) 2", type:"single", level:"중하",
+  question:"아래 코드를 실행시킨 결과로 알맞은 것을 고르세요.\n\ni = 0\nwhile i < 7:\n    print(\"Hello, world!\")\n    i += 1",
+  options:["Hello, world!(7번 반복)", "Hello, world!(1번)", "Hello, world!(5번 반복)", "출력 내용 없음"], answer:0,
+  explanation:"정답은 'Hello, world!(7번 반복)'이다." },
+{ id:"03_06_2_3", chapter:"03_06 반복문(while) 2", type:"single", level:"중하",
+  question:"두 코드가 같은 결과를 얻기 위해서 가 에 들어갈 코드를 고르세요.\n\nn = int(input(\"몇 단을 출력해볼까요?\"))\nfor i in range(1,8):\n    print(n,\"*\",i,\"=\",n*i)\n\n# 아래와 동일한 결과\nn = int(input(\"몇 단을 출력해볼까요?\"))\ni = 1\n가\n    print(n,\"*\",i,\"=\",n*i)\n    i += 1",
+  options:["while i > 8:", "while i < 8:", "while i >= 8:", "while i < 1:"], answer:1,
+  explanation:"정답은 'while i < 8:'이다." },
+{ id:"03_06_2_4a", chapter:"03_06 반복문(while) 2", type:"single", level:"하",
+  question:"반복문을 중간에 멈추고 싶다면 A 를 활용할 수 있습니다. A는?",
+  options:["continue", "break", "input", "range"], answer:1,
+  explanation:"정답은 'break'이다." },
+{ id:"03_06_2_4b", chapter:"03_06 반복문(while) 2", type:"single", level:"하",
+  question:"반복문을 중간까지만 실행하고 다시 처음으로 돌아오고 싶다면 B 를 활용할 수 있습니다. B는?",
+  options:["range", "continue", "input", "break"], answer:1,
+  explanation:"정답은 'continue'이다." },
+{ id:"03_06_2_5", chapter:"03_06 반복문(while) 2", type:"single", level:"중하",
+  question:"아래 코드를 실행하고 무엇을 입력했을 때 반복문이 종료될까요?\n\nwhile True :\n    n = int(input(\"숫자를 입력하세요!\"))\n    if n % 5 == 0:\n        print(\"5의 배수가 입력되었습니다! 프로그램을 종료합니다\")\n        break\n\n    if n % 6 == 0:\n        print(\"6의 배수가 입력되었습니다! 처음으로 돌아갑니다.\")\n        continue\n\n    print(\"n은 5의배수가 아닙니다!\")",
+  options:["5", "6", "n", "break"], answer:0,
+  explanation:"정답은 '5'이다." },
+
+// ========================= 03_07 리스트 튜플 딕셔너리 1 =========================
+{ id:"03_07_1_1", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"single", level:"하",
+  question:"리스트에 대한 설명 중 바르지 않은 것을 고르세요.",
+  options:["리스트는 대괄호([])로 묶어서 표현한다.", "리스트에 저장되는 요소를 콤마(,)로 구분한다.", "리스트에는 한 가지 자료형만 저장할 수 있다.", "리스트는 여러 데이터를 묶어서 저장할 때 사용한다."], answer:2,
+  explanation:"정답은 '리스트에는 한 가지 자료형만 저장할 수 있다.'이다." },
+{ id:"03_07_1_2", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"single", level:"하",
+  question:"다음 중 리스트에 대한 바른 설명을 고르세요.",
+  options:["슬라이싱은 리스트에서만 사용 가능하다.", "인덱스는 1부터 시작한다.", "for를 사용하면 리스트의 모든 요소에 하나씩 접근할 수 있다.", "인덱스 범위를 넘어서 번호로 접근하면 공백을 출력한다."], answer:2,
+  explanation:"정답은 'for를 사용하면 리스트의 모든 요소에 하나씩 접근할 수 있다.'이다." },
+{ id:"03_07_1_3", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"single", level:"하",
+  question:"인덱스와 슬라이싱에 대한 설명 중 바르지 않은 것을 고르세요.",
+  options:["슬라이싱은 인덱스를 활용하여 리스트의 필요한 부분만 잘라내어 활용할 때 사용한다.", "my_list[a:b]에서 a가 공란인 경우 가장 첫번째 요소부터를 의미한다.", "인덱스는 리스트의 각 요소에 대한 위치를 정수로 나타낸다.", "인덱스로 접근한 요소의 값은 변경할 수 없다."], answer:3,
+  explanation:"정답은 '인덱스로 접근한 요소의 값은 변경할 수 없다.'이다." },
+{ id:"03_07_1_4", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"single", level:"하",
+  question:"다음 중 리스트를 바르게 생성한 것을 고르세요.",
+  options:["actor = {'이정재', 50}", "singer = [아이유, 30]", "for = ['파이썬', 20, False, 5+10]", "student = [['김민준', 22, '부산'], ['박서준', 24]]"], answer:3,
+  explanation:"정답은 4번 코드이다." },
+{ id:"03_07_1_5", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"short", level:"중하",
+  question:"아래 코드의 실행 결과를 입력하세요.\n\nmix_list = [3, 5, 'python', 78]\nprint(mix_list[2])",
+  answerKeywords:["python"],
+  explanation:"정답은 'python'이다." },
+{ id:"03_07_1_6", chapter:"03_07 리스트 튜플 딕셔너리 1", type:"single", level:"중하",
+  question:"아래 코드의 출력 결과로 바른 것을 고르세요.\n\nmix_list = [3, 5, 'python', 78]\nmix_list[2] = 99\n\nprint(mix_list)",
+  options:["[3, 5, 99, 78]", "[3, 5, 'python', 78]", "[99, 99, 99, 99]", "99"], answer:0,
+  explanation:"정답은 '[3, 5, 99, 78]'이다." },
+
+// ========================= 03_07 리스트 튜플 딕셔너리 2 =========================
+{ id:"03_07_2_1", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"short", level:"중하",
+  question:"아래 코드의 출력 결과를 입력하세요.\n\nword = \"i love coding so much\"\nprint(word[2:6])",
+  answerKeywords:["love"],
+  explanation:"정답은 'love'이다." },
+{ id:"03_07_2_2", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"중하",
+  question:"아래 코드의 출력 결과로 바른 것을 선택하세요.\n\na = [5, 9, 2, 6, 1]\n\na.append(7)\nprint(a)",
+  options:["NameError: name 'a' is not defined", "[7, 5, 9, 2, 6, 1]", "[5, 9, 2, 6, 1]", "[5, 9, 2, 6, 1, 7]"], answer:3,
+  explanation:"정답은 '[5, 9, 2, 6, 1, 7]'이다." },
+{ id:"03_07_2_3", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"중하",
+  question:"아래 코드를 실행하고 숫자 7을 입력했습니다. 출력되는 결과로 바른 것을 고르세요.\n\nsample_list = []\nn = int(input('숫자를 입력하세요: '))\nsample_list.append(n)\n\nprint(sample_list)",
+  options:["7", "[7]", "7, 7, 7", "[[7]]"], answer:1,
+  explanation:"정답은 '[7]'이다." },
+{ id:"03_07_2_4", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"중하",
+  question:"아래 코드를 실행하고 hello, world 를 입력했습니다. 출력되는 결과로 바른 것을 고르세요.\n\nn = input().split()\nprint(n)",
+  options:["[split('hello world')]", "['hello, world']", "['hello world']", "['hello', 'world']"], answer:3,
+  explanation:"정답은 '['hello', 'world']'이다." },
+{ id:"03_07_2_5", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"중하",
+  question:"아래 코드를 실행하고 숫자 1 3 5 7 9 를 입력했습니다. 출력되는 결과로 바른 것을 고르세요.\n\nint_list = list(map(int, input('숫자를 입력하세요!').split()))\nprint(int_list)",
+  options:["['1', '3', '5', '7', '9']", "[1 3 5 7 9]", "[1, 3, 5, 7, 9]", "['1 3 5 7 9']"], answer:2,
+  explanation:"정답은 '[1, 3, 5, 7, 9]'이다." },
+{ id:"03_07_2_6", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"하",
+  question:"튜플에 대한 설명 중 바르지 않은 것을 고르세요.",
+  options:["튜플은 요소의 수정이 불가능하다.", "튜플은 인덱스를 사용할 수 없다.", "튜플은 리스트와 비슷하게 데이터를 묶어서 사용하는 자료형이다.", "튜플에 저장되는 요소를 콤마(,)로 구분한다."], answer:1,
+  explanation:"정답은 '튜플은 인덱스를 사용할 수 없다.'이다." },
+{ id:"03_07_2_7", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"하",
+  question:"과일 가게 품목을 튜플로 생성하려고 합니다. 다음 중 튜플을 바르게 생성한 것을 고르세요.",
+  options:["fruit_tuple = ('사과', '바나나', '체리')", "fruit_tuple = {'사과', '바나나', '체리'}", "fruit_tuple = ['사과', '바나나', '체리']", "fruit_tuple = {'사과':500, '바나나':200, '체리':700}"], answer:0,
+  explanation:"정답은 1번 코드이다." },
+{ id:"03_07_2_8", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"하",
+  question:"딕셔너리에 대한 설명 중 바르지 않은 것을 고르세요.",
+  options:["딕셔너리는 키를 이용해서 요소에 접근한다.", "딕셔너리는 중괄호({})로 묶어서 표현한다.", "딕셔너리는 키를 중복해서 사용할 수 있다.", "딕셔너리는 키(key)와 값(value)의 쌍으로 이루어진다."], answer:2,
+  explanation:"정답은 '딕셔너리는 키를 중복해서 사용할 수 있다.'이다." },
+{ id:"03_07_2_9", chapter:"03_07 리스트 튜플 딕셔너리 2", type:"single", level:"하",
+  question:"카페 메뉴를 딕셔너리로 생성하려고 합니다. 다음 중 딕셔너리를 바르게 생성한 것을 고르세요.",
+  options:["menu = ('우유': 800, '주스': 1000)", "menu = {'우유': 800, '우유': 1200, '주스': 1000}", "menu = {'우유': 800, '주스': 1000}", "menu = ['우유': 800, '주스': 1000]"], answer:2,
+  explanation:"정답은 3번 코드이다." },
+
+// ========================= 03_08 함수 1 =========================
+{ id:"03_08_1_1", chapter:"03_08 함수 1", type:"single", level:"하",
+  question:"함수에 대한 설명이 아닌 것을 고르세요.",
+  options:["정의해놓은 함수를 호출만 하면 사용할 수 있기 때문에 코드 재사용이 가능하다.", "하나의 기능을 하나의 함수로 만들어서 프로그램의 구조를 단순하게 만들 수 있다.", "입력값을 받아 처리한 결과를 반환한다.", "함수의 입력값과 반환값은 반드시 하나씩만 사용할 수 있다.", "코드의 가독성을 높이고 유지보수가 쉽게 만들어준다."], answer:3,
+  explanation:"정답은 '함수의 입력값과 반환값은 반드시 하나씩만 사용할 수 있다.'이다." },
+{ id:"03_08_1_2", chapter:"03_08 함수 1", type:"single", level:"하",
+  question:"함수의 구조에 대한 설명입니다. 바르지 않은 것을 고르세요.",
+  options:["함수는 def 키워드와 함께 함수명을 선언한다.", "함수 안에서 실행되는 코드는 반드시 들여쓰기를 해야한다.", "함수를 호출하지 않아도 함수를 정의하면 바로 실행된다.", "함수 선언줄 맨 끝에 콜론(:)을 붙여야 한다."], answer:2,
+  explanation:"정답은 '함수를 호출하지 않아도 함수를 정의하면 바로 실행된다.'이다." },
+{ id:"03_08_1_3", chapter:"03_08 함수 1", type:"single", level:"하",
+  question:"아래 코드 중 함수를 바르게 정의한 것을 고르시오.",
+  options:["def hi()\n    print(\"안녕\")", "def hi():\nprint(\"안녕\")", "hi():\n    print(\"안녕\")", "def hi():\n    print(\"안녕\")"], answer:3,
+  explanation:"정답은 4번 코드이다." },
+{ id:"03_08_1_4", chapter:"03_08 함수 1", type:"single", level:"하",
+  question:"함수에 대한 설명입니다. 바르지 않은 것을 고르세요.",
+  options:["함수가 어떤 동작을 할지 기능을 작성해놓은 코드를 함수 정의부라고 한다.", "정의해 놓은 함수를 불러서 실행시키는 코드를 함수 호출부라고 한다.", "인수와 매개변수의 개수가 맞지 않아도 에러없이 동작한다.", "인수는 함수를 호출할 때 넘겨주는 데이터를 의미한다.", "함수를 호출할 때 넘긴 인수를 함수 정의부에서 받아 저장하는 변수를 매개변수라고 한다."], answer:2,
+  explanation:"정답은 '인수와 매개변수의 개수가 맞지 않아도 에러없이 동작한다.'이다." },
+{ id:"03_08_1_5", chapter:"03_08 함수 1", type:"single", level:"하",
+  question:"아래 코드를 실행시켰을 때 오류가 나는 것을 고르시오.",
+  options:["def greet(n):\n    for i in range(n):\n        print(\"안녕\")\n\ngreet(5)", "def add(x, y):\n    x = x + y\n    print(y)\n\nadd(4, 5)", "def calc(x):\n    y = 3*x + 1\n    print(y)\n\ncalc()", "def hi():\n    print(\"안녕\")\n\nhi()"], answer:2,
+  explanation:"정답은 3번 코드이다." },
+
+// ========================= 03_08 함수 2 =========================
+{ id:"03_08_2_1", chapter:"03_08 함수 2", type:"single", level:"하",
+  question:"함수의 반환값에 대한 설명입니다. 바르지 않은 것을 고르세요.",
+  options:["함수는 실행이 끝난 후에 결과물을 return 키워드를 사용해서 함수 호출부로 반환할 수 있다.", "return은 함수를 종료하는 의미가 있다.", "함수에는 반드시 return이 있어야 한다."], answer:2,
+  explanation:"정답은 '함수에는 반드시 return이 있어야 한다.'이다." },
+{ id:"03_08_2_2", chapter:"03_08 함수 2", type:"short", level:"중하",
+  question:"swap() 함수 정의에서 가 에 들어갈 키워드를 입력하세요.\n\ndef swap(x,y):\n    tmp = x\n    x = y\n    y = tmp\n    가 x, y\n\nx, y = map(int, input().split())\nx, y = swap(x, y)\nprint(x, y)",
+  answerKeywords:["return"],
+  explanation:"정답은 'return'이다." },
+{ id:"03_08_2_3", chapter:"03_08 함수 2", type:"single", level:"하",
+  question:"아래 코드 중 다른 결과를 출력하는 코드를 고르세요.",
+  options:["def add_multiple(n, m):\n    res = (n + m) * m\n    return res\nt = add_multiple(5, 10)\nprint(t)", "def add_multiple(n, m):\n    res = (n + m) * m\n    print(res)\nadd_multiple(5, 10)", "def add_multiple(n, m):\n    res = (n + m) * m\nt = add_multiple(5, 10)\nprint(t)", "def add_multiple(n, m):\n    res = (n + m) * m\n    return res\nprint(add_multiple(5, 10))"], answer:2,
+  explanation:"정답은 3번 코드이다." },
+{ id:"03_08_2_4", chapter:"03_08 함수 2", type:"single", level:"하",
+  question:"함수의 지역변수와 전역변수에 대한 설명입니다. 바르게 설명하지 않은 곳을 고르세요.",
+  options:["함수 내부에서 선언되며, 함수 내부에서만 사용 가능한 변수를 지역변수라고 한다.", "함수 외부에서 선언되며, 함수 내·외부에서 모두 사용가능한 변수를 전역변수라고 한다.", "변수는 선언 위치와 상관없이 어디서나 사용할 수 있다."], answer:2,
+  explanation:"정답은 '변수는 선언 위치와 상관없이 어디서나 사용할 수 있다.'이다." },
+{ id:"03_08_2_5", chapter:"03_08 함수 2", type:"single", level:"하",
+  question:"아래 코드 중 'codle'을 출력하는 코드를 고르세요.",
+  options:["def print_msg():\n    msg = \"codle\"\n    print(msg)\n\nprint(msg)", "def print_msg():\n    msg = \"codle\"\n    print(msg)\n\nprint_msg(msg)", "def print_msg():\n    print(msg)\n\nmsg = \"codle\"\nprint_msg()", "def print_msg():\n    print(msg)\n\nmsg = \"codle\"\nprint_msg(msg)"], answer:2,
+  explanation:"정답은 3번 코드이다." },
+
+// ========================= 03_09 모듈 =========================
+{ id:"03_09_1", chapter:"03_09 모듈", type:"single", level:"하",
+  question:"주사위 던지기 게임을 만들려고 합니다. 알맞은 코드가 아닌 것을 고르세요.",
+  options:["import random as r\n\ndice = [1,2,3,4,5,6]\nnum = r.choice(dice)\nprint(num)", "import random as r\n\ndice = [1,2,3,4,5,6]\nnum = r.sample(dice, 1)\nprint(num[0])", "import random as r\n\ndice = [1,2,3,4,5,6]\nnum = r.shuffle(dice)\nprint(num)", "import random as r\n\nnum = r.randint(1, 6)\nprint(num)"], answer:2,
+  explanation:"정답은 3번 코드이다." },
+{ id:"03_09_2", chapter:"03_09 모듈", type:"multi", level:"중하",
+  question:"random.random() 의 실행결과로 바르지 않은 것을 모두 고르세요.",
+  options:["0.4521478965231", "0.0001236547892", "1.0", "'0.6325478912'", "0.9999999999"], answer:[2, 3],
+  explanation:"정답은 1.0, '0.6325478912'이다." },
+{ id:"03_09_3", chapter:"03_09 모듈", type:"multi", level:"중하",
+  question:"다음 중 모듈을 불러오는 방법과 활용이 바른 것을 모두 고르세요.",
+  options:["from math import sqrt\nb = sqrt(16)\nprint(b)", "import math as m\nb = m.sqrt(16)\nprint(b)", "from math import *\nb = math.sqrt(16)\nprint(b)", "import math as m\nb = sqrt(16)\nprint(b)", "from math import *\nb = sqrt(16)\nprint(b)"], answer:[0, 1, 4],
+  explanation:"정답은 1, 2, 5번이다." },
+{ id:"03_09_4", chapter:"03_09 모듈", type:"single", level:"하",
+  question:"time 모듈에서 sleep(5) 함수의 역할은 무엇인지 선택하세요.",
+  options:["프로그램의 실행을 5초 동안 일시 중지한다.", "현재 시간을 초 단위로 반환한다.", "현재 시간을 문자열로 반환한다.", "지정된 시간에 프로그램을 종료한다."], answer:0,
+  explanation:"정답은 '프로그램의 실행을 5초 동안 일시 중지한다.'이다." },
+{ id:"03_09_5", chapter:"03_09 모듈", type:"single", level:"하",
+  question:"다음 중 별도의 모듈을 import 하지 않아도 사용할 수 있는 파이썬의 내장 함수가 아닌 것을 고르세요.",
+  options:["round(f, n)", "int(n)", "len(str)", "time()", "print(str)"], answer:3,
+  explanation:"정답은 'time()'이다." },
+
+// ========================= 03_11 파일 입출력 =========================
+{ id:"03_11_1", chapter:"03_11 파일 입출력", type:"single", level:"하",
+  question:"파일 입출력을 위한 단계가 바르게 나열된 것을 고르세요.",
+  options:["파일읽기/쓰기 -> 파일열기 -> 파일닫기", "파일열기 -> 파일읽기/쓰기 -> 파일닫기", "파일닫기 -> 파일열기 -> 파일읽기/쓰기", "파일읽기/쓰기 -> 파일닫기 -> 파일열기"], answer:1,
+  explanation:"정답은 '파일열기 -> 파일읽기/쓰기 -> 파일닫기'이다." },
+{ id:"03_11_2", chapter:"03_11 파일 입출력", type:"single", level:"하",
+  question:"파일을 열기 위해 사용하는 함수를 고르세요.",
+  options:["close()", "write()", "read()", "save()", "open()"], answer:4,
+  explanation:"정답은 'open()'이다." },
+{ id:"03_11_3a", chapter:"03_11 파일 입출력", type:"short", level:"하",
+  question:"open 함수의 쓰기 모드를 영어 소문자로 입력하세요. (가)",
+  answerKeywords:["w"],
+  explanation:"정답은 'w'이다." },
+{ id:"03_11_3b", chapter:"03_11 파일 입출력", type:"short", level:"하",
+  question:"open 함수의 추가 모드를 영어 소문자로 입력하세요. (나)",
+  answerKeywords:["a"],
+  explanation:"정답은 'a'이다." },
+{ id:"03_11_3c", chapter:"03_11 파일 입출력", type:"short", level:"하",
+  question:"open 함수의 읽기 모드를 영어 소문자로 입력하세요. (다)",
+  answerKeywords:["r"],
+  explanation:"정답은 'r'이다." },
+{ id:"03_11_4", chapter:"03_11 파일 입출력", type:"single", level:"하",
+  question:"다음 문장이 참인지 거짓인지 선택하세요: '파일에 문자열을 쓰기 위해 read() 함수를 사용한다.'",
+  options:["참", "거짓"], answer:1,
+  explanation:"정답은 '거짓'이다." },
+{ id:"03_11_5", chapter:"03_11 파일 입출력", type:"short", level:"하",
+  question:"파일을 닫기 위해 사용하는 함수를 입력하세요.",
+  answerKeywords:["close", "close()"],
+  explanation:"정답은 'close'이다." },
+
+// ========================= 03_12 객체지향 프로그래밍 =========================
+{ id:"03_12_1", chapter:"03_12 객체지향 프로그래밍", type:"single", level:"하",
+  question:"객체 지향 프로그래밍에 대한 설명입니다. 바르지 않은 것을 선택하세요.",
+  options:["객체 지향 프로그래밍이란 여러 독립적인 부품들의 조합, 즉 객체들의 유기적인 협력과 결합으로 파악하고자 하는 컴퓨터 프로그래밍의 패러다임이다.", "객체 지향 프로그래밍은 프로그래밍에 필요한 데이터를 추상화시켜 상태와 행위를 가진 객체로 만들고 객체들간의 상호작용을 통해 로직을 구성하는 프로그래밍 방법이다.", "객체 지향 프로그래밍이란 컴퓨터 프로그램을 어떤 데이터를 입력받아 순서대로 처리하고 결과를 도출하는 명령어 목록을 말한다.", "객체 지향 프로그래밍은 '객체'라는 단위로 현실 세계를 모델링하는 방법론이다."], answer:2,
+  explanation:"정답은 '객체 지향 프로그래밍이란 컴퓨터 프로그램을 어떤 데이터를 입력받아 순서대...'이다." },
+{ id:"03_12_2", chapter:"03_12 객체지향 프로그래밍", type:"single", level:"하",
+  question:"객체지향 프로그래밍의 장점이 아닌 것을 고르세요.",
+  options:["코드의 재사용을 통해 코드 반복을 최소화한다.", "코드의 변경을 최소화하고 유지보수에 유리하다.", "명령어를 순서대로 나열하는 방법이다.", "코드를 최대한 간결하게 표현할 수 있다."], answer:2,
+  explanation:"정답은 '명령어를 순서대로 나열하는 방법이다.'이다." },
+{ id:"03_12_3", chapter:"03_12 객체지향 프로그래밍", type:"single", level:"하",
+  question:"클래스와 객체에 대한 설명으로 바르지 않은 것을 고르세요.",
+  options:["객체를 구성하는 요소를 속성이라고 한다.", "객체가 하는 행위를 기능이라고 한다.", "객체는 속성과 기능으로 구성된다.", "우리 주변에 있는 실제하는 대상을 객체라고 한다.", "객체는 반드시 형태가 있는 것만 해당하며, 눈에 보이지 않는 무형의 개념은 객체가 될 수 없다."], answer:4,
+  explanation:"정답은 '객체는 반드시 형태가 있는 것만 해당하며, 눈에 보이지 않는 무형의 개념...'이다." },
+{ id:"03_12_4", chapter:"03_12 객체지향 프로그래밍", type:"single", level:"하",
+  question:"스마트폰 클래스의 속성과 기능을 구현하려고 합니다. 다음 중 속성에 해당하는 것을 고르세요.",
+  options:["전화를 걸다.", "화면을 터치하다.", "배터리 잔량", "화면 밝기를 변경하다."], answer:2,
+  explanation:"정답은 '배터리 잔량'이다." },
+{ id:"03_12_5", chapter:"03_12 객체지향 프로그래밍", type:"single", level:"하",
+  question:"스마트폰 클래스의 속성과 기능을 구현하려고 합니다. 다음 중 기능에 해당하는 것을 고르세요.",
+  options:["전화를 걸다.", "모델명", "저장 공간", "현재 배터리 잔량"], answer:0,
+  explanation:"정답은 '전화를 걸다.'이다." },
+
+];
+
+// ▼▼▼ 여기에 구글 앱스 스크립트 배포 URL을 붙여넣으세요 ▼▼▼
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxm5gKl5eL2swMBZCfQ7x3ioHVSCKjcVvFRnw9akShjHmxABI6ZuqabwYD6ONr0jmaj/exec";
+const QUIZ_ID = "info-quiz01";
+// ▲▲▲ ────────────────────────────────────────────── ▲▲▲
+// (참고) 같은 Apps Script를 사용하더라도 QUIZ_ID가 다르면 구글 시트에 새 탭이 자동 생성되어 저장됩니다.
+
+function submitToSheet(name, score, correctCount, total, wrongList) {
+  const statusEl = document.getElementById('submitStatus');
+  if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.indexOf('PUT_YOUR_WEB_APP_URL_HERE') !== -1) {
+    if (statusEl) statusEl.textContent = '※ 결과 저장 기능이 아직 설정되지 않았습니다. (관리자에게 문의)';
+    return;
+  }
+  if (statusEl) statusEl.textContent = '결과 저장 중...';
+  fetch(GOOGLE_SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      quizId: QUIZ_ID,
+      name: name || '이름없음',
+      score: score,
+      correct: correctCount,
+      total: total,
+      wrongList: wrongList
+    })
+  }).then(() => {
+    if (statusEl) statusEl.textContent = '✅ 결과가 저장되었습니다.';
+  }).catch(() => {
+    if (statusEl) statusEl.textContent = '⚠ 결과 저장에 실패했습니다. (인터넷 연결을 확인하세요)';
+  });
+}
+
+function escapeHtml(str){
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── 코드 줄 자동 감지: 파이썬 코드처럼 보이는 줄을 찾아 <pre><code> 블록으로 묶어준다 ──
+function isCodeLine(line){
+  const t = line.trim();
+  if (t === '') return null; // 빈 줄은 주변 상황에 따라 나중에 결정
+  const symbolMatch = /[=(){}\[\]<>:]/.test(t) || /(==|!=|>=|<=|\+=|-=|\*=|\/=|\/\/)/.test(t);
+  if (!symbolMatch) return false;
+  const hangulMatches = t.match(/[가-힣]/g);
+  const hangul = hangulMatches ? hangulMatches.length : 0;
+  const ratio = hangul / t.length;
+  return ratio < 0.4;
+}
+
+function classifyLines(text){
+  const lines = text.split('\n');
+  let flags = lines.map(isCodeLine);
+  // 빈 줄: 앞뒤가 모두 코드면 코드로 간주
+  for (let i = 0; i < flags.length; i++) {
+    if (flags[i] === null) {
+      flags[i] = (flags[i-1] === true && flags[i+1] === true);
+    }
+  }
+  // 스무딩: 양쪽이 코드면 사이에 낀 짧은 줄도 코드로 흡수
+  for (let pass = 0; pass < 3; pass++) {
+    for (let i = 0; i < flags.length; i++) {
+      if (flags[i] === false) {
+        const prev = i > 0 ? flags[i-1] : null;
+        const next = i < flags.length - 1 ? flags[i+1] : null;
+        if (prev === true && next === true) flags[i] = true;
+      }
+    }
+  }
+  return lines.map((l, i) => ({ line: l, code: flags[i] }));
+}
+
+// 분류된 줄들을 일반 텍스트 / <pre><code> 코드블록으로 묶어 HTML 문자열로 변환
+function buildHtmlFromLines(text){
+  const items = classifyLines(text);
+  let html = '';
+  let buffer = [];
+  let bufferIsCode = null;
+  function flush(){
+    if (buffer.length === 0) return;
+    if (bufferIsCode) {
+      html += '<pre><code>' + escapeHtml(buffer.join('\n')) + '</code></pre>';
+    } else {
+      html += buffer.map(escapeHtml).join('<br>');
+    }
+    buffer = [];
+  }
+  items.forEach(({line, code}) => {
+    if (bufferIsCode === null) bufferIsCode = code;
+    if (code !== bufferIsCode) {
+      flush();
+      bufferIsCode = code;
+    }
+    buffer.push(line);
+  });
+  flush();
+  return html;
+}
+
+function renderQuestionText(container, text){
+  if (text.indexOf('\n') === -1) {
+    container.textContent = text;
+  } else {
+    container.innerHTML = buildHtmlFromLines(text);
+  }
+}
+function renderOptionText(span, text){
+  if (text.indexOf('\n') !== -1) {
+    span.innerHTML = buildHtmlFromLines(text);
+  } else {
+    span.textContent = text;
+  }
+}
+
+const state = {}; // id -> user answer
+let gradedOnce = false;
+let showWrongOnly = false;
+
+const quizRoot = document.getElementById('quizRoot');
+const chapterFilter = document.getElementById('chapterFilter');
+
+// build chapter filter options
+const chapters = [...new Set(QUESTIONS.map(q=>q.chapter))];
+chapters.forEach(ch=>{
+  const opt = document.createElement('option');
+  opt.value = ch; opt.textContent = ch;
+  chapterFilter.appendChild(opt);
+});
+
+function render() {
+  quizRoot.innerHTML = '';
+  let currentChapter = null;
+  const filterVal = chapterFilter.value;
+
+  QUESTIONS.forEach((q, idx) => {
+    if (filterVal !== 'all' && q.chapter !== filterVal) return;
+    if (showWrongOnly) {
+      const graded = state[q.id] !== undefined;
+      const correct = graded && gradeQuestion(q, state[q.id]);
+      if (!gradedOnce || correct) return;
+    }
+
+    if (q.chapter !== currentChapter) {
+      currentChapter = q.chapter;
+      const h = document.createElement('h2');
+      h.className = 'chapter';
+      h.textContent = currentChapter;
+      quizRoot.appendChild(h);
+    }
+
+    const div = document.createElement('div');
+    div.className = 'q';
+    div.id = 'qdiv_' + q.id;
+
+    const num = document.createElement('div');
+    num.className = 'qnum';
+    num.innerHTML = (idx+1) + '. <span class="level-badge">' + q.level + '</span>';
+    div.appendChild(num);
+
+    const qt = document.createElement('div');
+    qt.className = 'qtext';
+    renderQuestionText(qt, q.question);
+    div.appendChild(qt);
+
+    if (q.diagram) {
+      const dg = document.createElement('div');
+      dg.className = 'diagram';
+      dg.innerHTML = q.diagram;
+      div.appendChild(dg);
+    }
+
+    if (q.type === 'single' || q.type === 'truefalse') {
+      const ol = document.createElement('ol');
+      ol.className = 'opts';
+      ol.style.listStyle = 'none';
+      q.options.forEach((opt, oi) => {
+        const li = document.createElement('li');
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = q.id;
+        input.value = oi;
+        if (state[q.id] === oi) input.checked = true;
+        input.addEventListener('change', () => { state[q.id] = oi; updateProgress(); });
+        label.appendChild(input);
+        const span = document.createElement('span');
+        const wrap = document.createElement('span');
+        wrap.textContent = (oi+1) + '. ';
+        label.appendChild(wrap);
+        renderOptionText(span, opt);
+        label.appendChild(span);
+        li.appendChild(label);
+        ol.appendChild(li);
+      });
+      div.appendChild(ol);
+    } else if (q.type === 'multi') {
+      const ol = document.createElement('ol');
+      ol.className = 'opts';
+      ol.style.listStyle = 'none';
+      if (!Array.isArray(state[q.id])) state[q.id] = [];
+      q.options.forEach((opt, oi) => {
+        const li = document.createElement('li');
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = oi;
+        if (state[q.id].includes(oi)) input.checked = true;
+        input.addEventListener('change', () => {
+          if (input.checked) state[q.id].push(oi);
+          else state[q.id] = state[q.id].filter(v=>v!==oi);
+          updateProgress();
+        });
+        label.appendChild(input);
+        const span = document.createElement('span');
+        const wrap = document.createElement('span');
+        wrap.textContent = (oi+1) + '. ';
+        label.appendChild(wrap);
+        renderOptionText(span, opt);
+        label.appendChild(span);
+        li.appendChild(label);
+        ol.appendChild(li);
+      });
+      div.appendChild(ol);
+    } else if (q.type === 'short') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '정답을 입력하세요';
+      input.value = state[q.id] || '';
+      input.addEventListener('input', () => { state[q.id] = input.value; updateProgress(); });
+      div.appendChild(input);
+    }
+
+    const resultTag = document.createElement('div');
+    resultTag.className = 'result-tag';
+    resultTag.id = 'result_' + q.id;
+    div.appendChild(resultTag);
+
+    const expl = document.createElement('div');
+    expl.className = 'explanation';
+    expl.id = 'expl_' + q.id;
+    expl.textContent = '해설: ' + q.explanation;
+    div.appendChild(expl);
+
+    quizRoot.appendChild(div);
+  });
+
+  if (gradedOnce) applyGradingStyles();
+}
+
+function gradeQuestion(q, userAnswer) {
+  if (userAnswer === undefined) return false;
+  if (q.type === "single" || q.type === "truefalse") {
+    return userAnswer === q.answer;
+  }
+  if (q.type === "multi") {
+    if (!Array.isArray(userAnswer)) return false;
+    const a = [...userAnswer].sort().join(",");
+    const b = [...q.answer].sort().join(",");
+    return a === b;
+  }
+  if (q.type === "short") {
+    const norm = (s) => (s||"").trim().toLowerCase().replace(/\s+/g, "");
+    const ua = norm(userAnswer || "");
+    if (ua === "") return false;
+    return q.answerKeywords.some(k => norm(k) === ua);
+  }
+  return false;
+}
+
+function updateProgress() {
+  const answered = QUESTIONS.filter(q => {
+    const v = state[q.id];
+    if (v === undefined) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'string') return v.trim() !== '';
+    return true;
+  }).length;
+  document.getElementById('progressText').textContent = answered + ' / ' + QUESTIONS.length + ' 풀이';
+  document.getElementById('progressFill').style.width = (answered / QUESTIONS.length * 100) + '%';
+}
+
+function applyGradingStyles() {
+  let correctCount = 0;
+  QUESTIONS.forEach(q => {
+    const div = document.getElementById('qdiv_' + q.id);
+    if (!div) return;
+    const correct = gradeQuestion(q, state[q.id]);
+    if (correct) correctCount++;
+    div.classList.add('graded');
+    div.classList.toggle('correct', correct);
+    div.classList.toggle('wrong', !correct);
+    const tag = document.getElementById('result_' + q.id);
+    if (tag) {
+      tag.textContent = correct ? '✅ 정답입니다' : '❌ 오답입니다';
+      tag.className = 'result-tag ' + (correct ? 'correct' : 'wrong');
+    }
+  });
+  const score = Math.round(correctCount / QUESTIONS.length * 100);
+  const scoreBox = document.getElementById('scoreBox');
+  scoreBox.style.display = 'block';
+  scoreBox.textContent = '총점: ' + score + '점  (' + correctCount + ' / ' + QUESTIONS.length + ' 문항 정답)';
+}
+
+document.getElementById('gradeBtn').addEventListener('click', () => {
+  gradedOnce = true;
+  showWrongOnly = false;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  const name = (document.getElementById('studentName').value || '').trim();
+  let correctCount = 0;
+  const wrongNums = [];
+  QUESTIONS.forEach((q, idx) => {
+    const isCorrect = gradeQuestion(q, state[q.id]);
+    if (isCorrect) correctCount++;
+    else wrongNums.push(idx + 1);
+  });
+  const score = Math.round(correctCount / QUESTIONS.length * 100);
+  const wrongList = wrongNums.join(',');
+  submitToSheet(name, score, correctCount, QUESTIONS.length, wrongList);
+});
+
+document.getElementById('reviewWrongBtn').addEventListener('click', () => {
+  if (!gradedOnce) { alert('먼저 채점하기를 눌러주세요.'); return; }
+  showWrongOnly = !showWrongOnly;
+  document.getElementById('reviewWrongBtn').textContent = showWrongOnly ? '전체 문제 보기' : '틀린 문제만 보기';
+  render();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('모든 답안을 초기화하고 다시 푸시겠습니까?')) return;
+  Object.keys(state).forEach(k => delete state[k]);
+  gradedOnce = false;
+  showWrongOnly = false;
+  document.getElementById('scoreBox').style.display = 'none';
+  document.getElementById('submitStatus').textContent = '';
+  document.getElementById('reviewWrongBtn').textContent = '틀린 문제만 보기';
+  render();
+  updateProgress();
+});
+
+chapterFilter.addEventListener('change', render);
+
+// initial render
+render();
+updateProgress();
+
+// ---- 자동 테스트: 전체 정답 입력 시 100점인지 콘솔에서 확인 ----
+function selfTest() {
+  const testState = {};
+  QUESTIONS.forEach(q => {
+    if (q.type === 'single' || q.type === 'truefalse') testState[q.id] = q.answer;
+    else if (q.type === 'multi') testState[q.id] = q.answer;
+    else if (q.type === 'short') testState[q.id] = q.answerKeywords[0];
+  });
+  let correct = 0;
+  QUESTIONS.forEach(q => { if (gradeQuestion(q, testState[q.id])) correct++; });
+  console.log('[자동검수] 전체 정답 입력 시 점수:', Math.round(correct/QUESTIONS.length*100), '점 (', correct, '/', QUESTIONS.length, ')');
+}
+selfTest();
+</script>
+</body>
+</html>
