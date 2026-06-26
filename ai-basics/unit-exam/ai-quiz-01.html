@@ -1,0 +1,2817 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>01~06단원 변형 평가문제 - 인공지능 기초 (자동채점)</title>
+<style>
+  :root{ --main:#2b7a4b; --bg:#f7f9f8; }
+  * { box-sizing:border-box; }
+  body { font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif; margin:0; background:var(--bg); color:#222; }
+  header { background:var(--main); color:#fff; padding:18px 16px; text-align:center; position:sticky; top:0; z-index:10; }
+  header h1 { margin:0; font-size:20px; }
+  .container { max-width:820px; margin:0 auto; padding:16px; }
+  .toolbar { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; align-items:center; margin:14px 0 20px; }
+  #studentName { padding:8px 10px; border:1px solid #ccc; border-radius:6px; font-size:14px; width:140px; }
+  button { background:var(--main); color:#fff; border:none; padding:10px 16px; border-radius:6px; cursor:pointer; font-size:14px; }
+  button.secondary { background:#888; }
+  button.danger { background:#c0392b; }
+  button:hover { opacity:0.9; }
+  .progress { text-align:center; margin-bottom:10px; font-size:14px; color:#555; }
+  .progress-bar { height:8px; background:#ddd; border-radius:4px; overflow:hidden; margin:6px 0 16px; }
+  .progress-fill { height:100%; background:var(--main); width:0%; transition:width .2s; }
+  h2.chapter { background:#eef6f0; padding:8px 12px; border-left:6px solid var(--main); margin-top:30px; border-radius:4px; }
+  .q { background:#fff; border:1px solid #ddd; border-radius:10px; padding:16px; margin:14px 0; }
+  .q.correct { border-color:#2b7a4b; background:#f1faf3; }
+  .q.wrong { border-color:#c0392b; background:#fdf2f1; }
+  .qnum { font-weight:bold; color:var(--main); margin-bottom:6px; }
+  .level-badge { font-size:11px; padding:2px 8px; border-radius:10px; background:#e0e0e0; color:#555; margin-left:6px; }
+  .qtext { white-space:pre-line; }
+  .diagram { margin:10px 0; text-align:center; }
+  .opts { list-style:none; padding:0; margin:10px 0 0; }
+  .opts li { margin:6px 0; }
+  .opts label { display:flex; gap:8px; align-items:flex-start; cursor:pointer; padding:6px; border-radius:6px; }
+  .opts label:hover { background:#f0f0f0; }
+  input[type=text] { width:100%; padding:8px; border:1px solid #ccc; border-radius:6px; font-size:14px; margin-top:8px; }
+  .result-tag { font-weight:bold; margin-top:8px; }
+  .result-tag.correct { color:#2b7a4b; }
+  .result-tag.wrong { color:#c0392b; }
+  .explanation { margin-top:8px; padding:10px; background:#fffbe6; border-radius:6px; font-size:13px; color:#555; display:none; }
+  .q.graded .explanation { display:block; }
+  #scoreBox { text-align:center; font-size:18px; font-weight:bold; padding:18px; border-radius:10px; background:#fff; border:2px solid var(--main); margin:20px 0; display:none; }
+  .note { text-align:center; font-size:12px; color:#888; margin-top:30px; }
+  select#chapterFilter { padding:6px 10px; border-radius:6px; border:1px solid #ccc; }
+  @media (max-width:480px){ header h1{font-size:17px;} #studentName{width:110px;} }
+</style>
+</head>
+<body>
+<header>
+  <h1>01~06단원. 인공지능 기초 — 변형 평가문제 (자동채점)</h1>
+</header>
+<div class="container">
+  <div class="toolbar">
+    <input type="text" id="studentName" placeholder="이름 입력">
+    <select id="chapterFilter"><option value="all">전체 장 보기</option></select>
+    <button id="gradeBtn">채점하기</button>
+    <button class="secondary" id="reviewWrongBtn">틀린 문제만 보기</button>
+    <button class="secondary" id="resetBtn">다시 풀기</button>
+  </div>
+  <div class="progress" id="progressText">0 / 0 풀이</div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div id="scoreBox"></div>
+  <div id="quizRoot"></div>
+  <p class="note">※ 결과는 브라우저 메모리에만 저장되며 새로고침 시 초기화됩니다. (localStorage 미사용)<br>
+  ※ "채점하기"를 누르면 이름·점수·틀린 문제 번호가 구글 시트로 자동 전송됩니다.</p>
+</div>
+
+<script>
+// ====== 구글 시트 연동 설정 ======
+const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbxm5gKl5eL2swMBZCfQ7x3ioHVSCKjcVvFRnw9akShjHmxABI6ZuqabwYD6ONr0jmaj/exec";
+const QUIZ_ID = "ai-quiz-01";
+
+function submitToSheet(name, score, correctCount, total, wrongList) {
+  if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.indexOf("http") !== 0) {
+    console.warn("[알림] GOOGLE_SHEET_URL이 설정되지 않아 구글 시트로 전송하지 않습니다.");
+    return;
+  }
+  fetch(GOOGLE_SHEET_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ quizId: QUIZ_ID, name, score, correct: correctCount, total, wrongList })
+  }).catch(err => console.warn("[알림] 시트 전송 실패(네트워크):", err));
+}
+
+const QUESTIONS = [
+  {
+    "id": "01_01_q1",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "하",
+    "question": "앨런 튜링이 제2차 세계 대전 중 해독했던 암호 기계의 이름은 무엇인가요?",
+    "options": [
+      "에니그마",
+      "코드브레이커",
+      "로터스",
+      "크립토"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '에니그마'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q2",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "하",
+    "question": "튜링 머신이 토대를 마련해 준 시스템은 무엇인가요?",
+    "options": [
+      "고대 수학 시스템",
+      "고전 물리학 시스템",
+      "현대 컴퓨터 시스템",
+      "전통 예술 시스템"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '현대 컴퓨터 시스템'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q3",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "튜링 테스트를 고안한 목적은 무엇인가요?",
+    "options": [
+      "인공지능과 인간을 구별하기 어려운지 판단하기 위해",
+      "인간의 감정을 분석하기 위해",
+      "컴퓨터의 속도를 측정하기 위해",
+      "컴퓨터의 저장 용량을 확인하기 위해"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '인공지능과 인간을 구별하기 어려운지 판단하기 위해'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q4",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "하",
+    "question": "인공지능은 무엇을 본떠서 구현한 기술인가요?",
+    "options": [
+      "기계의 작동 원리",
+      "인간의 지능적인 행동",
+      "동물의 행동",
+      "자연 현상"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '인간의 지능적인 행동'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q5",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "인공지능은 문제 해결에 필요한 데이터를 어떻게 활용하나요?",
+    "options": [
+      "데이터를 무시한다",
+      "데이터를 삭제한다",
+      "데이터를 저장만 한다",
+      "패턴이나 규칙을 찾아 모델을 생성한다"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '패턴이나 규칙을 찾아 모델을 생성한다'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q6",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "하",
+    "question": "인공지능은 어떤 방법으로 문제를 해결하나요?",
+    "options": [
+      "직접 행동하여",
+      "데이터를 무시하고",
+      "예측과 추론을 통해",
+      "무작위로 선택하여"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '예측과 추론을 통해'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q7",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "자율 주행 자동차가 안전거리를 확보하는 방법은 무엇인가요?",
+    "options": [
+      "운전자의 얼굴을 인식하여",
+      "GPS로 위치를 추적하여",
+      "레이더로 앞뒤의 자동차와 물체를 감지하여",
+      "카메라로 신호등을 인식하여"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '레이더로 앞뒤의 자동차와 물체를 감지하여'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q8",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "자율 주행 자동차가 교통 신호와 법규를 준수하는 방법은 무엇인가요?",
+    "options": [
+      "카메라로 사람과 신호등을 인식하여",
+      "GPS로 경로를 안내하여",
+      "운전자의 심장 박동 수를 측정하여",
+      "레이더로 장애물을 감지하여"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '카메라로 사람과 신호등을 인식하여'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q9",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "자율 주행 자동차가 운전자의 상태를 관리하는 방법은 무엇인가요?",
+    "options": [
+      "카메라로 신호등을 인식하여",
+      "운전자의 얼굴을 인식하고 심장 박동 수를 측정하여",
+      "레이더로 주변 환경을 감지하여",
+      "GPS로 위치를 추적하여"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '운전자의 얼굴을 인식하고 심장 박동 수를 측정하여'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_01_q10",
+    "chapter": "01_01 인공지능의 개요",
+    "type": "single",
+    "level": "중",
+    "question": "자율 주행 자동차가 목적지까지 효율적인 경로를 안내하는 방법은 무엇인가요?",
+    "options": [
+      "카메라로 신호등을 인식하여",
+      "운전자의 얼굴을 인식하여",
+      "GPS와 교통 정보를 이용하여",
+      "레이더로 장애물을 감지하여"
+    ],
+    "answer": 2,
+    "explanation": "정답은 'GPS와 교통 정보를 이용하여'이다. (01_01 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q1",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "사용자가 팔을 휘젓는 속도를 인식하여 러닝 패달의 속도를 조절해 주는 기기는 무엇인가요?",
+    "options": [
+      "스피커",
+      "안마 의자",
+      "로봇 청소기",
+      "러닝머신"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '러닝머신'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q2",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "찾고 있는 상품과 함께 구매한 이력이 많은 상품을 안내해 주는 시스템은 무엇인가요?",
+    "options": [
+      "출입문 잠금 장치",
+      "세탁기",
+      "추천 시스템",
+      "러닝머신"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '추천 시스템'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q3",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "사용자의 몸 상태를 분석하여 부위별로 최적화된 안마를 제공하는 기기는 무엇인가요?",
+    "options": [
+      "안마 의자",
+      "스피커",
+      "로봇 청소기",
+      "러닝머신"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '안마 의자'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q4",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "얼굴이나 지문을 인식하여 잠금을 해제해 주는 장치는 무엇인가요?",
+    "options": [
+      "세탁기",
+      "스피커",
+      "로봇 청소기",
+      "출입문 잠금 장치"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '출입문 잠금 장치'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q5",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "사용자의 세탁 습관을 학습하여 자주 사용하는 세탁·건조 방식으로 작동하는 기기는 무엇인가요?",
+    "options": [
+      "로봇 청소기",
+      "세탁기",
+      "러닝머신",
+      "스피커"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '세탁기'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q6",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "하",
+    "question": "집의 구조나 장애물의 위치 데이터를 학습하여 청소를 수행하는 기기는 무엇인가요?",
+    "options": [
+      "안마 의자",
+      "로봇 청소기",
+      "러닝머신",
+      "세탁기"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '로봇 청소기'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q7",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "중",
+    "question": "다음 설명에 해당하는 인공지능 시스템은 무엇인가요?\n\n과거 범죄 데이터를 분석하여 범죄 발생 가능성이 높은 특정 지역이나 시간대를 예측한다.",
+    "options": [
+      "기후 예측 시스템",
+      "정신 건강 관리 시스템",
+      "범죄 예방 시스템",
+      "표절 검사 시스템"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '범죄 예방 시스템'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q8",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "중",
+    "question": "다음 설명에 해당하는 인공지능 시스템은 무엇인가요?\n\n한자나 영어 등 학습한 언어로 작성된 문장을 분석하여 우리말의 흐름에 맞게 번역한다.",
+    "options": [
+      "결정 지원 시스템",
+      "자료 분석 시스템",
+      "언어 번역 시스템",
+      "문장 생성 시스템"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '언어 번역 시스템'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q9",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "중",
+    "question": "다음 설명에 해당하는 인공지능 시스템은 무엇인가요?\n\n임상 데이터와 논문 데이터를 분석하여 질병과 관련된 물질을 탐색하고 신약을 개발한다.",
+    "options": [
+      "작품 복구 시스템",
+      "생태계 보호 시스템",
+      "질병 진단 시스템",
+      "신약 개발 시스템"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '신약 개발 시스템'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "01_02_q10",
+    "chapter": "01_02 인공지능 기반 문제 해결 사례",
+    "type": "single",
+    "level": "중",
+    "question": "다음 설명에 해당하는 인공지능 시스템은 무엇인가요?\n\n스마트폰 문자 및 음성 데이터를 분석하여 사용자의 언어 패턴을 학습하고 정신 건강 상태를 관찰한다.",
+    "options": [
+      "작품 생성 시스템",
+      "정신 건강 관리 시스템",
+      "시장 예측 시스템",
+      "작품 분석 시스템"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '정신 건강 관리 시스템'이다. (01_02 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q1",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "알파고를 개발한 사람은 누구인가요?",
+    "options": [
+      "데미스 허사비스",
+      "이세돌",
+      "마크 저커버그",
+      "엘론 머스크"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '데미스 허사비스'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q2",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "중",
+    "question": "알파고는 어떤 방식으로 다음 수를 예측하나요?",
+    "options": [
+      "가장 높은 확률의 수를 탐색",
+      "모든 가능한 수를 시도",
+      "무작위로 수를 선택",
+      "상대방의 수를 무시"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '가장 높은 확률의 수를 탐색'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q3",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "알파고는 누구와의 대국에서 승리하여 유명해졌나요?",
+    "options": [
+      "박정환 9단",
+      "조훈현 9단",
+      "이창호 9단",
+      "이세돌 9단"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '이세돌 9단'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q4",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "알파고의 성공은 어떤 분야에 관심을 불러일으켰나요?",
+    "options": [
+      "바이오 기술",
+      "로봇 공학",
+      "우주 탐사",
+      "인공지능"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '인공지능'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q5",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "문제를 해결하기 위한 과정을 체계적으로 찾는 과정을 무엇이라고 하나요?",
+    "options": [
+      "목표 설정",
+      "탐색",
+      "문제 해결",
+      "상태 공간"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '탐색'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q6",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "중",
+    "question": "문제를 해결하는 과정에서 거치는 모든 단계를 각각 무엇이라고 부르나요?",
+    "options": [
+      "방법",
+      "탐색",
+      "목표",
+      "상태"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '상태'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q7",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "중",
+    "question": "다음 설명에 해당하는 용어는 무엇인가요?\n\n문제를 해결하는 과정에서 발생할 수 있는 모든 상태들의 집합",
+    "options": [
+      "목표 상태",
+      "초기 상태",
+      "상태 공간",
+      "상태"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '상태 공간'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q8",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "다음 중 문제 해결 과정의 출발점에 해당하는 상태를 지칭하는 용어는 무엇인가요?",
+    "options": [
+      "탐색 경로",
+      "상태 공간",
+      "목표 상태",
+      "초기 상태"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '초기 상태'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q9",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "하",
+    "question": "다음은 문제 해결 과정의 단계 중 하나에 대한 설명입니다. 빈칸에 들어갈 적절한 단어는 무엇인가요?\n\n탐색은 (   )에서 시작하여 목표 상태에 도달하는 것을 목적으로 한다.",
+    "options": [
+      "탐색 단계",
+      "문제 상태",
+      "초기 상태",
+      "상태 공간"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '초기 상태'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_01_q10",
+    "chapter": "02_01 탐색과 문제 해결",
+    "type": "single",
+    "level": "중",
+    "question": "상태 공간 트리는 무엇을 의미하나요?",
+    "options": [
+      "상태 공간을 그래프 형태로 표현하는 것",
+      "상태 공간을 트리 형태로 구조화하여 표현하는 것",
+      "상태 공간을 리스트 형태로 표현하는 것",
+      "상태 공간을 배열 형태로 표현하는 것"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '상태 공간을 트리 형태로 구조화하여 표현하는 것'이다. (02_01 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q1",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "하",
+    "question": "인공지능 탐색의 주요 목표는 무엇인가요?",
+    "options": [
+      "효율적으로 목표 상태에 도달하는 것",
+      "모든 상태 공간을 탐색하는 것",
+      "탐색 과정을 반복하는 것",
+      "탐색 방법을 무작위로 선택하는 것"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '효율적으로 목표 상태에 도달하는 것'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q2",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "맹목적 탐색의 특징은 무엇인가요?",
+    "options": [
+      "정보나 경험을 이용하여 탐색한다",
+      "모든 상태 공간을 정해진 순서나 규칙에 따라 탐색한다",
+      "휴리스틱을 사용한다",
+      "최단 경로를 보장한다"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '모든 상태 공간을 정해진 순서나 규칙에 따라 탐색한다'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q3",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "하",
+    "question": "정보 이용 탐색을 부를 수 있는 다른 용어는 무엇인가요?",
+    "options": [
+      "맹목적 탐색",
+      "깊이 우선 탐색",
+      "휴리스틱 탐색",
+      "너비 우선 탐색"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '휴리스틱 탐색'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q4",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "깊이 우선 탐색의 탐색 경로는 무엇인가요? (단, 형제 노드는 그림에 표시된 순서대로 방문한다.)",
+    "options": [
+      "A→C→B→F→G→D→E→I→J→H",
+      "A→B→C→D→E→F→G→H→I→J",
+      "A→B→D→H→E→C→F→I→J→G",
+      "A→B→E→D→H→C→G→F→I→J"
+    ],
+    "answer": 2,
+    "explanation": "정답은 'A→B→D→H→E→C→F→I→J→G'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 480 250\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\">\n<g stroke=\"#888\" stroke-width=\"2\">\n<line x1=\"240\" y1=\"30\" x2=\"120\" y2=\"90\"/>\n<line x1=\"240\" y1=\"30\" x2=\"360\" y2=\"90\"/>\n<line x1=\"120\" y1=\"90\" x2=\"70\" y2=\"150\"/>\n<line x1=\"120\" y1=\"90\" x2=\"170\" y2=\"150\"/>\n<line x1=\"360\" y1=\"90\" x2=\"310\" y2=\"150\"/>\n<line x1=\"360\" y1=\"90\" x2=\"410\" y2=\"150\"/>\n<line x1=\"70\" y1=\"150\" x2=\"70\" y2=\"210\"/>\n<line x1=\"310\" y1=\"150\" x2=\"280\" y2=\"210\"/>\n<line x1=\"310\" y1=\"150\" x2=\"340\" y2=\"210\"/>\n</g>\n<g font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">\n<circle cx=\"240\" cy=\"30\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"240\" y=\"35\">A</text>\n<circle cx=\"120\" cy=\"90\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"120\" y=\"95\">B</text>\n<circle cx=\"360\" cy=\"90\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"360\" y=\"95\">C</text>\n<circle cx=\"70\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"70\" y=\"155\">D</text>\n<circle cx=\"170\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"170\" y=\"155\">E</text>\n<circle cx=\"310\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"310\" y=\"155\">F</text>\n<circle cx=\"410\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"410\" y=\"155\">G</text>\n<circle cx=\"70\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"70\" y=\"215\">H</text>\n<circle cx=\"280\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"280\" y=\"215\">I</text>\n<circle cx=\"340\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"340\" y=\"215\">J</text>\n</g>\n</svg>"
+  },
+  {
+    "id": "02_02_q5",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "너비 우선 탐색의 탐색 경로는 무엇인가요?",
+    "options": [
+      "A→B→D→H→E→C→F→I→J→G",
+      "A→C→B→F→G→D→E→I→J→H",
+      "A→B→E→D→H→C→G→F→I→J",
+      "A→B→C→D→E→F→G→H→I→J"
+    ],
+    "answer": 3,
+    "explanation": "정답은 'A→B→C→D→E→F→G→H→I→J'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 480 250\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\">\n<g stroke=\"#888\" stroke-width=\"2\">\n<line x1=\"240\" y1=\"30\" x2=\"120\" y2=\"90\"/>\n<line x1=\"240\" y1=\"30\" x2=\"360\" y2=\"90\"/>\n<line x1=\"120\" y1=\"90\" x2=\"70\" y2=\"150\"/>\n<line x1=\"120\" y1=\"90\" x2=\"170\" y2=\"150\"/>\n<line x1=\"360\" y1=\"90\" x2=\"310\" y2=\"150\"/>\n<line x1=\"360\" y1=\"90\" x2=\"410\" y2=\"150\"/>\n<line x1=\"70\" y1=\"150\" x2=\"70\" y2=\"210\"/>\n<line x1=\"310\" y1=\"150\" x2=\"280\" y2=\"210\"/>\n<line x1=\"310\" y1=\"150\" x2=\"340\" y2=\"210\"/>\n</g>\n<g font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">\n<circle cx=\"240\" cy=\"30\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"240\" y=\"35\">A</text>\n<circle cx=\"120\" cy=\"90\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"120\" y=\"95\">B</text>\n<circle cx=\"360\" cy=\"90\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"360\" y=\"95\">C</text>\n<circle cx=\"70\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"70\" y=\"155\">D</text>\n<circle cx=\"170\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"170\" y=\"155\">E</text>\n<circle cx=\"310\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"310\" y=\"155\">F</text>\n<circle cx=\"410\" cy=\"150\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"410\" y=\"155\">G</text>\n<circle cx=\"70\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"70\" y=\"215\">H</text>\n<circle cx=\"280\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"280\" y=\"215\">I</text>\n<circle cx=\"340\" cy=\"210\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"340\" y=\"215\">J</text>\n</g>\n</svg>"
+  },
+  {
+    "id": "02_02_q6",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "최상 우선 탐색이 하위 노드를 탐색할 때 기준으로 삼는 것은 무엇인가요?",
+    "options": [
+      "평가 함숫값",
+      "노드의 개수",
+      "노드의 깊이",
+      "탐색 시간"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '평가 함숫값'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q7",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "하",
+    "question": "평가 함수가 평가하는 대상은 무엇인가요?",
+    "options": [
+      "노드의 색상",
+      "목표 상태에 얼마나 가까운지",
+      "노드의 크기",
+      "탐색의 방향"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '목표 상태에 얼마나 가까운지'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q8",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "8 퍼즐 문제에서 평가 함숫값을 계산할 때 고려하는 것은 무엇인가요?",
+    "options": [
+      "퍼즐의 색상",
+      "퍼즐의 무게",
+      "퍼즐의 크기",
+      "목표 상태와 다른 위치에 있는 숫자"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '목표 상태와 다른 위치에 있는 숫자'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q9",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "하",
+    "question": "탐색 과정에서 탐색을 멈추는 시점은 언제인가요?",
+    "options": [
+      "목표 상태에 도달했을 때",
+      "노드가 부족할 때",
+      "시간이 초과될 때",
+      "메모리가 부족할 때"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '목표 상태에 도달했을 때'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q10",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "A* 알고리즘의 주요 목표는 무엇인가요?",
+    "options": [
+      "최장 경로 찾기",
+      "임의의 경로 찾기",
+      "모든 경로 찾기",
+      "최단 경로 찾기"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '최단 경로 찾기'이다. (02_02 변형문제 참고)"
+  },
+  {
+    "id": "02_02_q11",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "S에서 A로 가는 경로의 평가 함숫값을 고르시오.",
+    "options": [
+      "20",
+      "14",
+      "18",
+      "16"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '16'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 420 280\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"60\" y1=\"140\" x2=\"220\" y2=\"50\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"129\" y=\"86\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"140\" y=\"100\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">7</text><line x1=\"60\" y1=\"140\" x2=\"220\" y2=\"230\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"129\" y=\"176\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"140\" y=\"190\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">5</text><line x1=\"220\" y1=\"50\" x2=\"380\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"289\" y=\"86\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"300\" y=\"100\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">9</text><line x1=\"220\" y1=\"230\" x2=\"380\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"289\" y=\"176\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"300\" y=\"190\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">13</text><circle cx=\"60\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"60\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">S</text><circle cx=\"220\" cy=\"50\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"220\" y=\"55\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">A</text><circle cx=\"220\" cy=\"230\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"220\" y=\"235\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">B</text><circle cx=\"380\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"380\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">G</text></svg>"
+  },
+  {
+    "id": "02_02_q12",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "중",
+    "question": "S에서 B로 가는 경로의 평가 함숫값을 고르시오.",
+    "options": [
+      "16",
+      "18",
+      "20",
+      "14"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '18'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 420 280\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"60\" y1=\"140\" x2=\"220\" y2=\"50\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"129\" y=\"86\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"140\" y=\"100\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">7</text><line x1=\"60\" y1=\"140\" x2=\"220\" y2=\"230\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"129\" y=\"176\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"140\" y=\"190\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">5</text><line x1=\"220\" y1=\"50\" x2=\"380\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"289\" y=\"86\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"300\" y=\"100\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">9</text><line x1=\"220\" y1=\"230\" x2=\"380\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"289\" y=\"176\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"300\" y=\"190\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">13</text><circle cx=\"60\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"60\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">S</text><circle cx=\"220\" cy=\"50\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"220\" y=\"55\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">A</text><circle cx=\"220\" cy=\"230\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"220\" y=\"235\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">B</text><circle cx=\"380\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"380\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">G</text></svg>"
+  },
+  {
+    "id": "02_02_q13",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "상",
+    "question": "S에서 C로 가는 경로의 평가 함숫값은 얼마인가요?",
+    "options": [
+      "19",
+      "22",
+      "20",
+      "18"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '20'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 480 220\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"60\" y1=\"140\" x2=\"210\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"124\" y=\"131\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"135\" y=\"145\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">10</text><line x1=\"210\" y1=\"140\" x2=\"330\" y2=\"60\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"259\" y=\"91\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"270\" y=\"105\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">4</text><line x1=\"330\" y1=\"60\" x2=\"450\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"379\" y=\"91\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"390\" y=\"105\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">6</text><line x1=\"210\" y1=\"140\" x2=\"450\" y2=\"140\" stroke=\"#888\" stroke-width=\"2\" stroke-dasharray=\"6,4\"/><rect x=\"319\" y=\"131\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"330\" y=\"145\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">15</text><circle cx=\"60\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"60\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">S</text><circle cx=\"210\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"210\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">B</text><circle cx=\"330\" cy=\"60\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"330\" y=\"65\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">C</text><circle cx=\"450\" cy=\"140\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"450\" y=\"145\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">G</text></svg>"
+  },
+  {
+    "id": "02_02_q14",
+    "chapter": "02_02 지능적 탐색",
+    "type": "single",
+    "level": "상",
+    "question": "S에서 G까지의 최단 경로는 무엇인가요? (실선은 실제 이동 비용 g, 노드 옆 h 값은 목표 G까지의 휴리스틱 비용을 나타냅니다.)",
+    "options": [
+      "S → C → G",
+      "S → B → G",
+      "S → B → C → G",
+      "S → A → G"
+    ],
+    "answer": 2,
+    "explanation": "정답은 'S → B → C → G'이다. (02_02 변형문제 참고)",
+    "diagram": "<svg viewBox=\"0 0 500 340\" style=\"max-width:100%;height:auto;\" xmlns=\"http://www.w3.org/2000/svg\"><line x1=\"50\" y1=\"170\" x2=\"180\" y2=\"50\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"104\" y=\"101\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"115\" y=\"115\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">5</text><line x1=\"50\" y1=\"170\" x2=\"180\" y2=\"290\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"104\" y=\"221\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"115\" y=\"235\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">9</text><line x1=\"180\" y1=\"50\" x2=\"180\" y2=\"290\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"169\" y=\"161\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"180\" y=\"175\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">4</text><line x1=\"180\" y1=\"290\" x2=\"330\" y2=\"290\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"244\" y=\"281\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"255\" y=\"295\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">5</text><line x1=\"330\" y1=\"290\" x2=\"460\" y2=\"170\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"384\" y=\"221\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"395\" y=\"235\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">4</text><line x1=\"180\" y1=\"290\" x2=\"460\" y2=\"170\" stroke=\"#888\" stroke-width=\"2\"/><rect x=\"309\" y=\"221\" width=\"22\" height=\"18\" fill=\"#fff\"/><text x=\"320\" y=\"235\" font-family=\"sans-serif\" font-size=\"13\" text-anchor=\"middle\">11</text><circle cx=\"50\" cy=\"170\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"50\" y=\"175\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">S</text><circle cx=\"180\" cy=\"50\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"180\" y=\"55\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">A</text><circle cx=\"180\" cy=\"290\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"180\" y=\"295\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">B</text><circle cx=\"330\" cy=\"290\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"330\" y=\"295\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">C</text><circle cx=\"460\" cy=\"170\" r=\"18\" fill=\"#eef6f0\" stroke=\"#2b7a4b\" stroke-width=\"2\"/><text x=\"460\" y=\"175\" font-family=\"sans-serif\" font-size=\"15\" text-anchor=\"middle\">G</text><g font-family=\"sans-serif\" font-size=\"12\" fill=\"#555\"><text x=\"20\" y=\"200\">h=14</text><text x=\"150\" y=\"35\">h=9</text><text x=\"150\" y=\"320\">h=10</text><text x=\"300\" y=\"320\">h=4</text><text x=\"445\" y=\"155\">h=0</text></g></svg>"
+  },
+  {
+    "id": "02_03_q1",
+    "chapter": "02_03 지능적 탐색(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )(이)란 휴리스틱과 같은 추가 정보를 활용하여 더 효율적으로 목표 상태를 찾아가는 탐색 방법이다.",
+    "answerKeywords": [
+      "정보 이용 탐색",
+      "정보이용탐색"
+    ],
+    "explanation": "정답은 '정보 이용 탐색'이다. (02_03 변형문제 참고)"
+  },
+  {
+    "id": "02_03_q2",
+    "chapter": "02_03 지능적 탐색(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 문제 해결 과정에서 나타날 수 있는 모든 상태를 트리 형태로 표현한 것이다.",
+    "answerKeywords": [
+      "상태 공간 트리",
+      "상태공간트리"
+    ],
+    "explanation": "정답은 '상태 공간 트리'이다. (02_03 변형문제 참고)"
+  },
+  {
+    "id": "02_03_q3",
+    "chapter": "02_03 지능적 탐색(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 평가 함수를 이용해 가장 가능성이 높다고 판단되는 노드를 우선적으로 탐색하는 방법이다.",
+    "answerKeywords": [
+      "최상 우선 탐색",
+      "최상우선탐색"
+    ],
+    "explanation": "정답은 '최상 우선 탐색'이다. (02_03 변형문제 참고)"
+  },
+  {
+    "id": "02_03_q4",
+    "chapter": "02_03 지능적 탐색(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "트리에서 A를 루트 노드로 하여 깊이 우선 탐색을 수행했을 때, 가장 마지막으로 탐색하는 노드는 무엇인가요? (단, 형제 노드는 그림에 표시된 순서대로 방문한다. A-B, A-C, A-D, C-E, C-F, D-G 구조)",
+    "options": [
+      "A",
+      "B",
+      "E",
+      "F",
+      "G"
+    ],
+    "answer": 4,
+    "explanation": "정답은 'G'이다. (02_03 변형문제 참고)"
+  },
+  {
+    "id": "02_03_q5",
+    "chapter": "02_03 지능적 탐색(단답형)",
+    "type": "short",
+    "level": "중",
+    "question": "정확한 해를 보장하지는 않지만, 경험이나 직관적인 판단에 근거하여 문제를 더 빠르고 효율적으로 해결하도록 돕는 방법은 무엇인가요?",
+    "answerKeywords": [
+      "휴리스틱"
+    ],
+    "explanation": "정답은 '휴리스틱'이다. (02_03 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q1",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "조셉 바이젠바움이 개발한 최초의 대화형 컴퓨터 프로그램의 이름은 무엇인가요?",
+    "options": [
+      "알파고",
+      "엘리자",
+      "왓슨",
+      "시리"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '엘리자'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q2",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "조셉 바이젠바움이 엘리자를 개발한 주된 목적은 무엇인가요?",
+    "options": [
+      "음악 작곡",
+      "심리 상담 치료",
+      "게임 개발",
+      "언어 번역"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '심리 상담 치료'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q3",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "엘리자는 어떤 방식으로 환자들에게 인기를 끌었는지 고르시오.",
+    "options": [
+      "감정 분석",
+      "정확한 진단",
+      "되묻는 대답",
+      "빠른 응답"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '되묻는 대답'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q4",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "조셉 바이젠바움은 인공지능의 어떤 측면에 대해 윤리적 고찰을 제안했는지 고르시오.",
+    "options": [
+      "디자인 개선",
+      "속도 향상",
+      "인격 부여",
+      "데이터 보안"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '인격 부여'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q5",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "지식은 무엇에 근거를 두고 있는지 고르시오.",
+    "options": [
+      "상상",
+      "추측",
+      "감정",
+      "규칙이나 사실, 정보"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '규칙이나 사실, 정보'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q6",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "정보는 무엇을 의미하나요?",
+    "options": [
+      "무작위 데이터",
+      "이미지 파일",
+      "데이터에 의미와 가치를 부여한 결과물",
+      "단순한 숫자나 문자"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '데이터에 의미와 가치를 부여한 결과물'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q7",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "데이터는 무엇을 의미하나요?",
+    "options": [
+      "이론과 원리",
+      "해석된 정보",
+      "수집한 자료나 사실, 관찰 결과",
+      "감정과 직관"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '수집한 자료나 사실, 관찰 결과'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q8",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "데이터는 어떤 형태로 수집된 자료를 의미하나요?",
+    "options": [
+      "맛",
+      "소리",
+      "냄새",
+      "숫자, 문자, 이미지"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '숫자, 문자, 이미지'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q9",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "하",
+    "question": "지식은 어떤 기준으로 분류되는지 고르시오.",
+    "options": [
+      "특징과 목적",
+      "크기",
+      "색깔",
+      "무게"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '특징과 목적'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q10",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "다음 중 선언적 지식의 예는 무엇인가요?",
+    "options": [
+      "물의 끓는점은 100°C이다.",
+      "라면을 끓이는 방법",
+      "라면을 끓일 수 있는 환경이다.",
+      "배가 고프다."
+    ],
+    "answer": 0,
+    "explanation": "정답은 '물의 끓는점은 100°C이다.'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q11",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "명제 논리에서 참과 거짓을 판단할 수 있는 문장은 무엇으로 표현되는지 고르시오.",
+    "options": [
+      "문학적 표현",
+      "비유적 표현",
+      "수식",
+      "논리식"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '논리식'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q12",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "다음 중 부정의 예는 무엇인가요?",
+    "options": [
+      "컬링은 동계 올림픽 종목이 아니다.",
+      "컬링은 동계 올림픽 종목이거나, 4명의 선수가 하는 스포츠이다.",
+      "컬링은 동계 올림픽 종목이다.",
+      "컬링은 4명의 선수가 하는 스포츠이다."
+    ],
+    "answer": 0,
+    "explanation": "정답은 '컬링은 동계 올림픽 종목이 아니다.'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q13",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "논리합은 어떤 경우에 참이 되는지 고르시오.",
+    "options": [
+      "둘 다 거짓일 때만",
+      "둘 중 하나라도 참일 때",
+      "둘 다 참일 때만",
+      "둘 중 하나라도 거짓일 때"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '둘 중 하나라도 참일 때'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q14",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "규칙은 어떤 구조로 표현되는지 고르시오.",
+    "options": [
+      "사실과 의견",
+      "조건문과 결과문",
+      "논리합과 논리곱",
+      "명제와 부정"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '조건문과 결과문'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_01_q15",
+    "chapter": "03_01 지식의 표현",
+    "type": "single",
+    "level": "중",
+    "question": "'불이 나면 소방서에 신고하라'는 어떤 형태로 표현되는지 고르시오.",
+    "options": [
+      "IF-THEN 구조",
+      "논리합 구조",
+      "부정 구조",
+      "명제 구조"
+    ],
+    "answer": 0,
+    "explanation": "정답은 'IF-THEN 구조'이다. (03_01 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q1",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "하",
+    "question": "연역적 추론이란 무엇을 바탕으로 결론을 이끌어 내는 방법인가요?",
+    "options": [
+      "개인적인 경험",
+      "일반적인 규칙이나 원리",
+      "특정한 사례",
+      "통계적 데이터"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '일반적인 규칙이나 원리'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q2",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "중",
+    "question": "다음 중 귀납적 추론의 예는 무엇인가요?",
+    "options": [
+      "모닥불은 산소가 필요하다",
+      "모든 별은 빛난다",
+      "불은 산소가 있어야 한다",
+      "보름달은 음력 15일에 볼 수 있다"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '모든 별은 빛난다'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q3",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "하",
+    "question": "통계 기반 추론은 무엇을 세어 결론을 이끌어 내는 방법인가요?",
+    "options": [
+      "특정 사례의 등장 횟수",
+      "개인적인 경험",
+      "일반적인 규칙",
+      "논리적인 원리"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '특정 사례의 등장 횟수'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q5",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "중",
+    "question": "보름달을 볼 수 있는 확률은 얼마인가요?",
+    "options": [
+      "약 1/20",
+      "약 1/30",
+      "약 1/10",
+      "약 1/15"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '약 1/30'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q6",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "하",
+    "question": "전문가 시스템은 무엇을 저장하는 시스템인가요?",
+    "options": [
+      "사용자 정보",
+      "일반 상식",
+      "전문가의 지식",
+      "데이터베이스"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '전문가의 지식'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q8",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "하",
+    "question": "달은 무엇의 둘레를 도나요?",
+    "options": [
+      "태양",
+      "화성",
+      "지구",
+      "목성"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '지구'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q9",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "하",
+    "question": "지구는 무엇의 둘레를 도나요?",
+    "options": [
+      "달",
+      "화성",
+      "목성",
+      "태양"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '태양'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_02_q10",
+    "chapter": "03_02 지식의 추론",
+    "type": "single",
+    "level": "중",
+    "question": "모든 위성은 무엇의 둘레를 돈다고 추론 규칙에서 말하는지 고르시오.",
+    "options": [
+      "행성",
+      "은하",
+      "별",
+      "위성"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '행성'이다. (03_02 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q1",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 어떤 사건이나 상태에 대해 이미 알려져 있는, 참인 정보나 내용을 의미한다.",
+    "answerKeywords": [
+      "사실"
+    ],
+    "explanation": "정답은 '사실'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q2",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 사물이나 개념, 사실 등 '무엇'에 대한 정보를 나타내는 정적인 형태의 지식이다.",
+    "answerKeywords": [
+      "선언적 지식",
+      "선언적지식"
+    ],
+    "explanation": "정답은 '선언적 지식'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q3",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 참과 거짓을 명확하게 판단할 수 있는 문장이나 식으로 지식을 표현하는 방법이다.",
+    "answerKeywords": [
+      "명제 논리",
+      "명제논리"
+    ],
+    "explanation": "정답은 '명제 논리'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q4",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 특정한 상황이나 조건이 충족될 때에만 적용할 수 있는 지식을 의미한다.",
+    "answerKeywords": [
+      "조건적 지식",
+      "조건적지식"
+    ],
+    "explanation": "정답은 '조건적 지식'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q5",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )이란 어떤 대상이나 현상에 대해 이해하고 알고 있는 내용으로, 사실과 규칙 등의 정보에 근거하여 형성된다.",
+    "answerKeywords": [
+      "지식"
+    ],
+    "explanation": "정답은 '지식'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q6",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "컴퓨팅 시스템의 지식 표현 방법에 대한 설명으로 옳지 않은 것은 무엇인가요?",
+    "options": [
+      "명제 논리는 참과 거짓을 객관적으로 판단할 수 있는 문장 또는 식이다.",
+      "프레임은 지식을 서로 관계가 있는 것끼리 분류하고 이들을 상하 관계로 구성하여 표현한다.",
+      "의미망은 노드와 노드 사이의 관계를 링크로 표현한 구조이다.",
+      "규칙은 조건문(IF)과 결론문(THEN)만으로 구성되며, 둘 이상의 조건을 결합하여 구성할 수 없다.",
+      "절차적 지식은 어떤 일의 절차나 방법에 관한 지식을 의미한다."
+    ],
+    "answer": 3,
+    "explanation": "정답은 '규칙은 조건문(IF)과 결론문(THEN)만으로 구성되며, 둘 이상의 조건을 결합하여 구성할 수 없다.'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "03_03_q7",
+    "chapter": "03_03 지식의 표현과 추론(단답형)",
+    "type": "short",
+    "level": "중",
+    "question": "다음 내용이 설명하고 있는 추론의 방법을 작성하시오.\n\n여러 개의 개별적인 사례나 경험으로부터 공통적인 규칙이나 일반적인 결론을 이끌어 낸다.",
+    "answerKeywords": [
+      "귀납적 추론",
+      "귀납적추론"
+    ],
+    "explanation": "정답은 '귀납적 추론'이다. (03_03 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q1",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "페이페이 리는 어떤 분야의 연구를 했는지 고르시오.",
+    "options": [
+      "네트워크 보안",
+      "데이터베이스 관리",
+      "컴퓨터 비전",
+      "소프트웨어 개발"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '컴퓨터 비전'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q2",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "이미지넷은 무엇을 위해 만들어졌는지 고르시오.",
+    "options": [
+      "네트워크 구축",
+      "이미지 인식",
+      "소프트웨어 테스트",
+      "데이터 저장"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '이미지 인식'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q3",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "중",
+    "question": "이미지넷에는 약 몇 개의 이미지가 포함되어 있나요?",
+    "options": [
+      "1천만 개",
+      "1백만 개",
+      "5천만 개",
+      "10억 개"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '10억 개'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q4",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "페이페이 리는 컴퓨터 비전 분야에 어떤 기여를 했나요?",
+    "options": [
+      "데이터베이스 최적화",
+      "이미지와 동영상 이해 및 처리 기술 발전",
+      "소프트웨어 개발 도구 제공",
+      "네트워크 보안 강화"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '이미지와 동영상 이해 및 처리 기술 발전'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q5",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습이란 무엇인가요?",
+    "options": [
+      "컴퓨터가 규칙을 명시적으로 입력받는 방법",
+      "컴퓨터가 데이터를 이용하여 학습하는 방법",
+      "컴퓨터가 소프트웨어를 설치하는 방법",
+      "컴퓨터가 하드웨어를 업그레이드하는 방법"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '컴퓨터가 데이터를 이용하여 학습하는 방법'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q6",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습은 어떤 방식으로 규칙을 찾는지 고르시오.",
+    "options": [
+      "규칙을 무작위로 생성한다",
+      "사람이 규칙을 명시적으로 알려준다",
+      "규칙을 외부에서 다운로드한다",
+      "데이터에서 스스로 규칙을 찾는다"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '데이터에서 스스로 규칙을 찾는다'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q7",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습 문제 해결 과정의 첫 번째 단계는 무엇인가요?",
+    "options": [
+      "모델 구현 및 평가",
+      "모델 활용",
+      "문제 이해",
+      "데이터 준비"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '문제 이해'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q8",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "하",
+    "question": "데이터 준비 단계에서 데이터를 수집하는 방법은 무엇인가요?",
+    "options": [
+      "모델을 학습시킨다",
+      "웹사이트에서 내려받거나 웹 크롤링을 통해 수집한다",
+      "결과를 예측하거나 분류한다",
+      "모델의 성능을 평가한다"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '웹사이트에서 내려받거나 웹 크롤링을 통해 수집한다'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q9",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "중",
+    "question": "예측(회귀)은 무엇을 수행하나요?",
+    "options": [
+      "데이터의 특성들 사이의 관계를 이용해 경향성을 파악하는 것",
+      "데이터를 몇 개의 범주로 구분하는 것",
+      "데이터를 수집하는 것",
+      "비슷한 데이터들을 묶음으로 만드는 것"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '데이터의 특성들 사이의 관계를 이용해 경향성을 파악하는 것'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q10",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "중",
+    "question": "분류는 무엇을 수행하나요?",
+    "options": [
+      "비슷한 데이터들을 묶음으로 만드는 것",
+      "데이터의 특성들 사이의 관계를 이용해 경향성을 파악하는 것",
+      "데이터를 수집하는 것",
+      "데이터를 이미 정해진 몇 개의 범주 중 어디에 속하는지 구분하는 것"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '데이터를 이미 정해진 몇 개의 범주 중 어디에 속하는지 구분하는 것'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_01_q11",
+    "chapter": "04_01 기계학습과 문제해결",
+    "type": "single",
+    "level": "중",
+    "question": "군집화(Clustering)의 목적은 무엇인가요?",
+    "options": [
+      "데이터를 수집하는 것",
+      "데이터를 이미 정해진 몇 개의 범주 중 어디에 속하는지 구분하는 것",
+      "비슷한 데이터들을 묶음으로 만드는 것",
+      "데이터의 특성들 사이의 관계를 이용해 경향성을 파악하는 것"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '비슷한 데이터들을 묶음으로 만드는 것'이다. (04_01 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q1",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습에서 모델의 정확성과 일반화 성능을 향상시키기 위해 필요한 데이터의 조건은 무엇인가요?",
+    "options": [
+      "적은 양의 데이터",
+      "충분한 양과 품질 좋은 데이터",
+      "비정형 데이터만 사용",
+      "데이터의 출처가 불분명한 데이터"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '충분한 양과 품질 좋은 데이터'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q2",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "데이터를 수집할 때 고려해야 할 사항은 무엇인가요?",
+    "options": [
+      "데이터의 출처는 중요하지 않다",
+      "데이터의 양이 적어도 된다",
+      "데이터는 무조건 정형 데이터여야 한다",
+      "데이터의 수집 방법과 출처가 명확해야 한다"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '데이터의 수집 방법과 출처가 명확해야 한다'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q3",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "중",
+    "question": "데이터 수집 시 점검해야 할 사항 중 하나는 무엇인가요?",
+    "options": [
+      "데이터의 양이 적다",
+      "수집한 데이터가 인간의 선입견이나 차별을 포함하고 있지 않다",
+      "데이터의 클래스가 불균형하다",
+      "데이터의 출처가 불분명하다"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '수집한 데이터가 인간의 선입견이나 차별을 포함하고 있지 않다'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q4",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "정형 데이터의 특징은 무엇인가요?",
+    "options": [
+      "데이터의 의미 파악이 어렵다",
+      "행과 열로 이루어진 표 형태",
+      "별도의 분석 방법이 필요하다",
+      "정해진 구조가 없다"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '행과 열로 이루어진 표 형태'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q5",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "비정형 데이터의 특징은 무엇인가요?",
+    "options": [
+      "정해진 구조 없이 구성되어 있다",
+      "행과 열로 이루어진 표 형태",
+      "데이터의 의미 파악이 쉽다",
+      "문자나 수치 데이터로 구성된다"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '정해진 구조 없이 구성되어 있다'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q6",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "데이터의 속성은 무엇인가요?",
+    "options": [
+      "데이터의 위치",
+      "데이터의 색상",
+      "데이터의 고유한 특성",
+      "데이터의 크기"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '데이터의 고유한 특성'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q7",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "결측치는 무엇을 의미하나요?",
+    "options": [
+      "데이터의 평균값",
+      "데이터의 최소값",
+      "누락된 데이터 값",
+      "데이터의 최대값"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '누락된 데이터 값'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q8",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "하",
+    "question": "이상치는 어떤 값을 의미하나요?",
+    "options": [
+      "최빈값",
+      "극단적으로 크거나 작은 값",
+      "평균에 가까운 값",
+      "중앙값"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '극단적으로 크거나 작은 값'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q9",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "중",
+    "question": "핵심 속성이란 무엇인가요?",
+    "options": [
+      "문제 해결에 필요한 데이터의 속성",
+      "데이터의 위치",
+      "데이터의 색상",
+      "데이터의 크기"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '문제 해결에 필요한 데이터의 속성'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_02_q10",
+    "chapter": "04_02 데이터의 유형과 전처리",
+    "type": "single",
+    "level": "중",
+    "question": "결측치와 이상치를 처리하는 방법이 아닌 것은 무엇인가요?",
+    "options": [
+      "결측치와 이상치가 있는 속성 제거",
+      "데이터의 색상 변경",
+      "결측치와 이상치가 있는 데이터 제거",
+      "결측치와 이상치를 대푯값으로 치환"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '데이터의 색상 변경'이다. (04_02 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q1",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )(이)란 데이터를 정해진 범주(category) 중 하나로 구분하는 방법이다.",
+    "answerKeywords": [
+      "분류"
+    ],
+    "explanation": "정답은 '분류'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q2",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )(이)란 데이터 수집 과정에서 빠지거나 기록되지 않은 값을 말한다.",
+    "answerKeywords": [
+      "결측치"
+    ],
+    "explanation": "정답은 '결측치'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q3",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 사진, 영상, 음성과 같이 정해진 규칙이나 형식 없이 저장된 데이터를 말한다.",
+    "answerKeywords": [
+      "비정형 데이터",
+      "비정형데이터"
+    ],
+    "explanation": "정답은 '비정형 데이터'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q4",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 행과 열의 구조를 갖추어 미리 정해진 형식에 따라 저장된 데이터를 말한다.",
+    "answerKeywords": [
+      "정형 데이터",
+      "정형데이터"
+    ],
+    "explanation": "정답은 '정형 데이터'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q5",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "기계학습에 대한 설명으로 옳지 않은 것은 무엇인가요?",
+    "options": [
+      "사람이 직접 답을 구하는 알고리즘을 작성하지 않아도 된다.",
+      "스스로 데이터 안에서 규칙을 찾아낸다.",
+      "많은 데이터를 이용해 새로운 지식을 추론한다.",
+      "인공지능을 구현하는 방법 중 하나이다.",
+      "결과를 내기 위한 모든 규칙을 사람이 사전에 절차적으로 모두 작성해 두어야 한다."
+    ],
+    "answer": 4,
+    "explanation": "정답은 '결과를 내기 위한 모든 규칙을 사람이 사전에 절차적으로 모두 작성해 두어야 한다.'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q6",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "single",
+    "level": "상",
+    "question": "기계학습으로 해결할 수 있는 문제 중 예측 문제만을 고른 것은 무엇인가요?\n\nㄱ. 강수량 데이터를 학습해 다음 주 강수량을 예측한다.\nㄴ. 환자의 진료 기록을 바탕으로 질병 유무를 분류한다.\nㄷ. 작물 재배 데이터를 학습해 내년 수확량을 예측한다.\nㄹ. 고객의 구매 데이터를 학습해 비슷한 성향의 고객끼리 묶는다.\nㅁ. 손글씨 이미지를 보고 어떤 숫자인지 분류한다.",
+    "options": [
+      "ㄱ, ㄴ",
+      "ㄱ, ㄷ",
+      "ㄴ, ㅁ",
+      "ㄷ, ㄹ",
+      "ㄹ, ㅁ"
+    ],
+    "answer": 1,
+    "explanation": "정답은 'ㄱ, ㄷ'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "04_03_q7",
+    "chapter": "04_03 기계학습과 데이터(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "비정형 데이터에 대한 설명으로 옳지 않은 것은 무엇인가요?",
+    "options": [
+      "사진, 영상, 음성 등 정해진 형식이 없는 데이터이다.",
+      "정형 데이터에 비해 저장 공간이 더 많이 필요한 경우가 많다.",
+      "행과 열로 이루어진 표 형태로 정리되어 있어 분석이 쉽다.",
+      "형식이 정해져 있지 않아 다양한 형태의 정보를 담을 수 있다.",
+      "SNS의 게시글, 사진, 동영상 등이 대표적인 예이다."
+    ],
+    "answer": 2,
+    "explanation": "정답은 '행과 열로 이루어진 표 형태로 정리되어 있어 분석이 쉽다.'이다. (04_03 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q1",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "아서 사무엘이 개발한 프로그램은 어떤 게임에 사용되었나요?",
+    "options": [
+      "바둑",
+      "포커",
+      "체커",
+      "체스"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '체커'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q2",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "아서 사무엘은 기계학습을 어떻게 정의했나요?",
+    "options": [
+      "빠르게 계산하는 능력",
+      "인터넷을 사용하는 능력",
+      "데이터를 저장하는 능력",
+      "컴퓨터가 스스로 학습할 수 있는 능력"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '컴퓨터가 스스로 학습할 수 있는 능력'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q3",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습이라는 용어를 처음 사용한 사람은 누구인가요?",
+    "options": [
+      "아서 사무엘",
+      "존 매카시",
+      "마빈 민스키",
+      "앨런 튜링"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '아서 사무엘'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q4",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "아서 사무엘은 어떤 분야에 기계학습을 적용했나요?",
+    "options": [
+      "교육 분야",
+      "금융 분야",
+      "게임 분야",
+      "의료 분야"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '게임 분야'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q5",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "기계학습의 유형 중 문제와 답을 모두 알려 주고 학습하는 방법은 무엇인가요?",
+    "options": [
+      "강화 학습",
+      "비지도 학습",
+      "지도 학습"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '지도 학습'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q6",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "비지도 학습의 특징은 무엇인가요?",
+    "options": [
+      "답을 가르쳐 주지 않고 학습한다",
+      "문제와 답을 모두 알려 준다",
+      "시도와 보상을 이용한다"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '답을 가르쳐 주지 않고 학습한다'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q7",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "하",
+    "question": "강화 학습은 어떤 방법을 사용하여 학습하나요?",
+    "options": [
+      "시도와 보상을 이용해 학습한다",
+      "답을 가르쳐 주지 않고 학습한다",
+      "문제와 답을 알려 주고 학습한다"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '시도와 보상을 이용해 학습한다'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_01_q8",
+    "chapter": "05_01 기계학습의 유형과 특징",
+    "type": "single",
+    "level": "중",
+    "question": "다음 중 비지도 학습의 예로 적절한 것은 무엇인가요?",
+    "options": [
+      "예측",
+      "보상",
+      "군집"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '군집'이다. (05_01 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q1",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "선형 회귀는 무엇을 예측하는 알고리즘인가요?",
+    "options": [
+      "데이터의 입력값",
+      "새로운 데이터의 출력값",
+      "데이터의 저장 위치",
+      "데이터의 크기"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '새로운 데이터의 출력값'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q2",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "선형 회귀는 주로 어떤 문제에 활용되나요?",
+    "options": [
+      "데이터 삭제",
+      "데이터 저장",
+      "데이터 복사",
+      "예측과 상관 관계 파악"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '예측과 상관 관계 파악'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q3",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "아이스크림 판매량 예측에서 독립 변수는 무엇인가요?",
+    "options": [
+      "행복 지수",
+      "아이스크림 판매량",
+      "제동 거리",
+      "최고 온도"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '최고 온도'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q4",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "자동차 속도에 따른 제동 거리 예측에서 종속 변수는 무엇인가요?",
+    "options": [
+      "자동차 속도",
+      "1인당 국내 총생산",
+      "제동 거리",
+      "행복 지수"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '제동 거리'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q5",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "행복 지수와 상관 관계가 있는 변수는 무엇인가요?",
+    "options": [
+      "1인당 국내 총생산",
+      "아이스크림 판매량",
+      "최고 온도",
+      "제동 거리"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '1인당 국내 총생산'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q6",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "의사 결정 트리는 무엇을 나타내는 알고리즘인가요?",
+    "options": [
+      "데이터를 암호화하는 알고리즘",
+      "데이터를 저장하는 알고리즘",
+      "데이터를 분류하는 규칙을 트리 구조로 나타내는 알고리즘",
+      "데이터를 삭제하는 알고리즘"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '데이터를 분류하는 규칙을 트리 구조로 나타내는 알고리즘'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q7",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "의사 결정 트리는 주로 어떤 목적으로 사용되나요?",
+    "options": [
+      "데이터 저장",
+      "데이터 삭제",
+      "데이터 암호화",
+      "분류와 예측"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '분류와 예측'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q8",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "UN 기준에 따르면, 65세 이상 인구가 20% 이상인 사회는 무엇으로 분류되나요?",
+    "options": [
+      "초고령 사회",
+      "고령화 사회",
+      "명명하지 않음",
+      "고령 사회"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '초고령 사회'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q9",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "의사 결정 트리를 이용한 인터넷 쇼핑몰의 마케팅 방법에서, 최근 1년 간 구매 이력이 없는 고객은 어떻게 분류되나요?",
+    "options": [
+      "이탈 고객",
+      "VIP 고객",
+      "일반 고객",
+      "잠재 고객"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '이탈 고객'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q10",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "의사 결정 트리에서 각 노드는 무엇을 의미하나요?",
+    "options": [
+      "예측 결과",
+      "분류 규칙",
+      "암호화 키",
+      "데이터 저장소"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '분류 규칙'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q11",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-최근접 이웃(KNN)은 어떤 작업에 주로 사용되는 알고리즘인가요?",
+    "options": [
+      "데이터 암호화",
+      "네트워크 보안",
+      "그래픽 렌더링",
+      "데이터 분류"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '데이터 분류'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q12",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-최근접 이웃 알고리즘은 입력된 데이터와 어떤 기준으로 가장 가까운 데이터를 확인하나요?",
+    "options": [
+      "크기",
+      "색상",
+      "거리",
+      "시간"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '거리'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q13",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-최근접 이웃 알고리즘에서 \"k\"의 값이 의미하는 것은 무엇인가요?",
+    "options": [
+      "알고리즘의 처리 속도",
+      "분류하려는 데이터의 크기",
+      "가장 가까운 데이터의 개수",
+      "확인할 데이터의 총 개수"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '가장 가까운 데이터의 개수'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q14",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "다음 중 K-최근접 이웃 알고리즘의 활용 사례가 아닌 것은 무엇인가요?",
+    "options": [
+      "데이터 분류",
+      "네트워크 트래픽 분석",
+      "이미지 화질 복구",
+      "흑백 이미지의 색상 복원"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '네트워크 트래픽 분석'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q15",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-평균 알고리즘은 무엇을 하는 알고리즘인가요?",
+    "options": [
+      "데이터를 정렬한다.",
+      "주어진 데이터를 k개의 묶음으로 군집화한다.",
+      "데이터를 복사한다.",
+      "데이터를 삭제한다."
+    ],
+    "answer": 1,
+    "explanation": "정답은 '주어진 데이터를 k개의 묶음으로 군집화한다.'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q16",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "K-평균 알고리즘에서 중심점은 어떻게 이동하나요?",
+    "options": [
+      "각 군집의 평균값의 위치로 이동한다.",
+      "임의의 방향으로 이동한다.",
+      "고정된 위치에 머문다.",
+      "무작위로 이동한다."
+    ],
+    "answer": 0,
+    "explanation": "정답은 '각 군집의 평균값의 위치로 이동한다.'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q17",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-평균 알고리즘은 언제 군집화를 종료하나요?",
+    "options": [
+      "데이터가 부족할 때",
+      "시간이 다 되었을 때",
+      "더 이상 중심점이 이동하지 않을 때",
+      "사용자가 중지할 때"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '더 이상 중심점이 이동하지 않을 때'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q18",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "하",
+    "question": "K-평균 알고리즘은 주로 어떤 분야에 사용되나요?",
+    "options": [
+      "이미지 편집에 사용된다.",
+      "비디오 편집에 사용된다.",
+      "문서를 주제별로 군집화하는 데 사용된다.",
+      "음악 작곡에 사용된다."
+    ],
+    "answer": 2,
+    "explanation": "정답은 '문서를 주제별로 군집화하는 데 사용된다.'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_02_q19",
+    "chapter": "05_02 기계학습 알고리즘의 종류",
+    "type": "single",
+    "level": "중",
+    "question": "K-평균 알고리즘에서 k의 값을 2로 설정하면 무엇을 하나요?",
+    "options": [
+      "2개의 데이터를 복사한다.",
+      "2개의 데이터를 삭제한다.",
+      "임의의 위치에 2개의 중심점을 지정한다.",
+      "2개의 데이터를 정렬한다."
+    ],
+    "answer": 2,
+    "explanation": "정답은 '임의의 위치에 2개의 중심점을 지정한다.'이다. (05_02 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q1",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "지도 학습이란 인공지능 모델에게 문제와 정답(레이블)을 모두 알려 주어, 모델이 스스로 정답을 예측하도록 학습시키는 방식이다. 이 학습 방식의 이름을 쓰시오.",
+    "answerKeywords": [
+      "지도 학습",
+      "지도학습"
+    ],
+    "explanation": "정답은 '지도 학습'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q2",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "이 학습 방식에서는 정답(레이블)이 없는 데이터를 이용하여 데이터 자체의 구조나 특징을 스스로 학습한다. 이 학습 방식의 이름을 쓰시오.",
+    "answerKeywords": [
+      "비지도 학습",
+      "비지도학습"
+    ],
+    "explanation": "정답은 '비지도 학습'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q3",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "데이터들의 관계를 하나의 직선으로 나타내어 입력값에 따른 결과값을 예측하는 알고리즘의 이름을 쓰시오.",
+    "answerKeywords": [
+      "선형 회귀",
+      "선형회귀"
+    ],
+    "explanation": "정답은 '선형 회귀'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q4",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "행동에 대한 보상을 받아 더 나은 행동을 선택하도록 학습하는 방식의 이름을 쓰시오.",
+    "answerKeywords": [
+      "강화 학습",
+      "강화학습"
+    ],
+    "explanation": "정답은 '강화 학습'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q5",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "중",
+    "question": "전처리한 고객 구매 데이터를 이용하여 유사한 특성을 가진 고객끼리 k개의 군집으로 묶을 때 사용하는 알고리즘의 이름을 쓰시오.",
+    "answerKeywords": [
+      "K-평균 알고리즘",
+      "K평균 알고리즘",
+      "k-평균 알고리즘",
+      "k평균알고리즘"
+    ],
+    "explanation": "정답은 'K-평균 알고리즘'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q6",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "문제와 답을 모두 알려 주고 학습하는 방법인 지도 학습의 적용 사례로 보기 어려운 것은 무엇인가요?",
+    "options": [
+      "스팸 메일 분류",
+      "강우 및 기상 상황 예측",
+      "자동차 엔진의 기계 부품 고장 예측",
+      "비슷한 구매 패턴을 가진 고객끼리 그룹화",
+      "주택의 면적과 위치 데이터를 바탕으로 가격 예측"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '비슷한 구매 패턴을 가진 고객끼리 그룹화'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "05_03_q7",
+    "chapter": "05_03 기계학습 알고리즘(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "새로운 데이터가 입력되면 기존 데이터 중 가장 가까운 k개의 데이터를 찾아, 그 데이터들의 특성을 바탕으로 새로운 데이터를 분류하거나 예측하는 알고리즘의 이름을 쓰시오.",
+    "answerKeywords": [
+      "K-최근접 이웃",
+      "K최근접이웃",
+      "k-최근접 이웃",
+      "k최근접이웃"
+    ],
+    "explanation": "정답은 'K-최근접 이웃'이다. (05_03 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q1",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "프랭크 로젠블랫의 직업은 무엇인가요?",
+    "options": [
+      "화학자",
+      "물리학자",
+      "수학자",
+      "신경 생물학자"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '신경 생물학자'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q2",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "프랭크 로젠블랫은 무엇을 모방하여 신경망 알고리즘을 개발했나요?",
+    "options": [
+      "인간 뇌의 작동 원리",
+      "컴퓨터의 작동 원리",
+      "동물의 행동 패턴",
+      "자연의 생태계"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '인간 뇌의 작동 원리'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q3",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "프랭크 로젠블랫은 어떤 연구의 발전에 기여했나요?",
+    "options": [
+      "양자 물리학",
+      "기호주의",
+      "연결주의",
+      "진화론"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '연결주의'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q4",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "인공신경망을 구성하는 기본 단위는 무엇인가요?",
+    "options": [
+      "활성화 함수",
+      "뉴런",
+      "가중치",
+      "퍼셉트론"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '뉴런'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q5",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "퍼셉트론은 무엇을 모방한 모델인가요?",
+    "options": [
+      "컴퓨터의 CPU",
+      "네트워크 라우터",
+      "데이터베이스",
+      "인간의 뉴런"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '인간의 뉴런'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q6",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "퍼셉트론의 구성 요소가 아닌 것은 무엇인가요?",
+    "options": [
+      "활성화 함수",
+      "데이터베이스",
+      "가중치",
+      "입력"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '데이터베이스'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q7",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "인공신경망의 입력층은 어떤 역할을 하나요?",
+    "options": [
+      "데이터를 연산하여 다음 층으로 전달한다.",
+      "데이터를 저장한다.",
+      "기준에 맞추어 데이터를 출력한다.",
+      "외부로부터 데이터를 입력받아 다음 층으로 전달한다."
+    ],
+    "answer": 3,
+    "explanation": "정답은 '외부로부터 데이터를 입력받아 다음 층으로 전달한다.'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q8",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "인공신경망의 출력층은 어떤 역할을 하나요?",
+    "options": [
+      "데이터를 저장한다.",
+      "외부로부터 데이터를 입력받는다.",
+      "기준에 맞추어 데이터를 출력한다.",
+      "데이터를 연산하여 다음 층으로 전달한다."
+    ],
+    "answer": 2,
+    "explanation": "정답은 '기준에 맞추어 데이터를 출력한다.'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q9",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "딥러닝이란 무엇인가요?",
+    "options": [
+      "데이터 저장 기술",
+      "하드웨어 제조 기술",
+      "심층 신경망을 사용하는 기계학습 방법",
+      "단순한 계산을 수행하는 방법",
+      "인터넷 검색 엔진"
+    ],
+    "answer": 2,
+    "explanation": "정답은 '심층 신경망을 사용하는 기계학습 방법'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q10",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "심층 신경망의 구성 요소가 아닌 것은 무엇인가요?",
+    "options": [
+      "은닉층",
+      "데이터베이스",
+      "입력층",
+      "노드",
+      "출력층"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '데이터베이스'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q11",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "단일 퍼셉트론의 한계는 무엇인가요?",
+    "options": [
+      "복잡한 문제를 해결하지 못함",
+      "데이터 저장 용량 부족",
+      "인터넷 연결 불가",
+      "사용자 인터페이스 부족",
+      "전력 소모가 큼"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '복잡한 문제를 해결하지 못함'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q12",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "은닉층이 증가할수록 발생하는 문제는 무엇인가요?",
+    "options": [
+      "계산 시간이 오래 걸림",
+      "전력 소모 감소",
+      "인터넷 속도 저하",
+      "데이터 손실 증가",
+      "메모리 용량 감소"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '계산 시간이 오래 걸림'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q13",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "중",
+    "question": "딥러닝의 발전 배경에 해당하지 않는 것은 무엇인가요?",
+    "options": [
+      "고성능 하드웨어의 발전",
+      "빅데이터의 등장",
+      "인터넷의 발달",
+      "기계 번역 기술의 발전",
+      "다양한 알고리즘의 등장"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '기계 번역 기술의 발전'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q14",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "컴퓨터 비전은 무엇을 연구하는 분야인가요?",
+    "options": [
+      "네트워크 보안을 강화하는 방법",
+      "시각 데이터를 입력하고 처리하는 방법",
+      "데이터베이스를 관리하는 방법",
+      "음성 데이터를 분석하는 방법"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '시각 데이터를 입력하고 처리하는 방법'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q15",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "다음 중 컴퓨터 비전의 활용 분야가 아닌 것은 무엇인가요?",
+    "options": [
+      "얼굴 인식",
+      "음성 인식",
+      "멸종 위기 동물 관찰",
+      "의료 영상 분석"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '음성 인식'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q16",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "자연어 처리는 무엇을 연구하는 분야인가요?",
+    "options": [
+      "데이터를 저장하고 검색하는 방법",
+      "사람이 사용하는 언어를 이해하고 처리하는 방법",
+      "네트워크 트래픽을 분석하는 방법",
+      "이미지를 분류하는 방법"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '사람이 사용하는 언어를 이해하고 처리하는 방법'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q17",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "다음 중 자연어 처리의 활용 분야로 적절한 것은 무엇인가요?",
+    "options": [
+      "챗봇",
+      "데이터 압축",
+      "비디오 스트리밍",
+      "이미지 필터링"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '챗봇'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_01_q18",
+    "chapter": "06_01 인공신경망의 이해와 활용 분야",
+    "type": "single",
+    "level": "하",
+    "question": "음성 인식은 어떤 과정을 통해 이루어지나요?",
+    "options": [
+      "이미지를 텍스트로 변환",
+      "사람의 음성을 데이터로 변환",
+      "데이터를 암호화",
+      "텍스트를 이미지로 변환"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '사람의 음성을 데이터로 변환'이다. (06_01 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q1",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "합성곱 신경망은 무엇을 통해 데이터에서 필요한 특성을 추출하나요?",
+    "options": [
+      "합성곱 연산",
+      "저장",
+      "출력",
+      "데이터 입력"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '합성곱 연산'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q2",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "합성곱 신경망 모델의 층 구성에 포함되지 않는 것은 무엇인가요?",
+    "options": [
+      "합성곱 층",
+      "데이터베이스 층",
+      "풀링 층",
+      "완전 연결 층"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '데이터베이스 층'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q3",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "합성곱 연산의 과정에서 사용되는 것은 무엇인가요?",
+    "options": [
+      "데이터베이스",
+      "필터",
+      "네트워크",
+      "서버"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '필터'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q4",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "순환 신경망은 어떤 데이터를 처리하는 데 특화되어 있나요?",
+    "options": [
+      "정적 데이터",
+      "비정형 데이터",
+      "이미지 데이터",
+      "순차적인 데이터"
+    ],
+    "answer": 3,
+    "explanation": "정답은 '순차적인 데이터'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q5",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "다음 중 순차 데이터에 해당하지 않는 것은 무엇인가요?",
+    "options": [
+      "정적 이미지",
+      "날씨",
+      "음악",
+      "주가"
+    ],
+    "answer": 0,
+    "explanation": "정답은 '정적 이미지'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_02_q6",
+    "chapter": "06_02 합성곱 신경망과 순환 신경망",
+    "type": "single",
+    "level": "하",
+    "question": "순환 신경망의 구조에 포함되지 않는 것은 무엇인가요?",
+    "options": [
+      "출력층",
+      "정적 연결",
+      "입력층",
+      "순환 연결"
+    ],
+    "answer": 1,
+    "explanation": "정답은 '정적 연결'이다. (06_02 변형문제 참고)"
+  },
+  {
+    "id": "06_03_q1",
+    "chapter": "06_03 인공신경망과 딥러닝(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "(      )은/는 퍼셉트론을 여러 개 결합하여 다양한 계산을 수행할 수 있도록 만든 모델이다.",
+    "answerKeywords": [
+      "인공신경망",
+      "인공 신경망"
+    ],
+    "explanation": "정답은 '인공신경망'이다. (06_03 변형문제 참고)"
+  },
+  {
+    "id": "06_03_q2",
+    "chapter": "06_03 인공신경망과 딥러닝(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "은닉층이 충분히 많은 심층 신경망을 활용하여 복잡한 문제를 해결하는 학습 방법을 (      )이라 한다.",
+    "answerKeywords": [
+      "딥러닝",
+      "딥 러닝"
+    ],
+    "explanation": "정답은 '딥러닝'이다. (06_03 변형문제 참고)"
+  },
+  {
+    "id": "06_03_q3",
+    "chapter": "06_03 인공신경망과 딥러닝(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "이미지의 특징을 추출하는 데 강점이 있어, 이미지를 처리하는 데 좋은 성능을 보이는 인공신경망 구조를 (      )이라 한다.",
+    "answerKeywords": [
+      "합성곱 신경망",
+      "합성곱신경망"
+    ],
+    "explanation": "정답은 '합성곱 신경망'이다. (06_03 변형문제 참고)"
+  },
+  {
+    "id": "06_03_q4",
+    "chapter": "06_03 인공신경망과 딥러닝(단답형)",
+    "type": "short",
+    "level": "하",
+    "question": "순환 신경망은 순차적인 데이터를 처리하는 데 강점이 있어, 사람의 말소리를 텍스트로 변환하는 (      ) 분야에서 널리 활용된다.",
+    "answerKeywords": [
+      "음성 인식",
+      "음성인식"
+    ],
+    "explanation": "정답은 '음성 인식'이다. (06_03 변형문제 참고)"
+  },
+  {
+    "id": "06_03_q5",
+    "chapter": "06_03 인공신경망과 딥러닝(단답형)",
+    "type": "single",
+    "level": "중",
+    "question": "인공신경망과 딥러닝에 대한 설명으로 옳지 않은 것은 무엇인가요?",
+    "options": [
+      "퍼셉트론은 인간 뇌의 신경 세포인 뉴런을 모방하여 만들었다.",
+      "인공신경망은 다양한 계산을 하기 위해 퍼셉트론을 결합한 모델이다.",
+      "딥러닝은 기계학습의 한 분야로, 심층 신경망을 활용하는 방법이다.",
+      "합성곱 신경망은 이미지 데이터를 처리하는 데 강점이 있다.",
+      "딥러닝이 좋은 성능을 보이게 된 배경에는 컴퓨팅 성능의 향상만 영향을 주었을 뿐, 데이터의 양은 큰 영향을 주지 않았다."
+    ],
+    "answer": 4,
+    "explanation": "정답은 '딥러닝이 좋은 성능을 보이게 된 배경에는 컴퓨팅 성능의 향상만 영향을 주었을 뿐, 데이터의 양은 큰 영향을 주지 않았다.'이다. (06_03 변형문제 참고)"
+  }
+];
+
+const state = {}; // id -> user answer
+let gradedOnce = false;
+let showWrongOnly = false;
+
+const quizRoot = document.getElementById('quizRoot');
+const chapterFilter = document.getElementById('chapterFilter');
+
+// build chapter filter options
+const chapters = [...new Set(QUESTIONS.map(q=>q.chapter))];
+chapters.forEach(ch=>{
+  const opt = document.createElement('option');
+  opt.value = ch; opt.textContent = ch;
+  chapterFilter.appendChild(opt);
+});
+
+function render() {
+  quizRoot.innerHTML = '';
+  let currentChapter = null;
+  const filterVal = chapterFilter.value;
+
+  QUESTIONS.forEach((q, idx) => {
+    if (filterVal !== 'all' && q.chapter !== filterVal) return;
+    if (showWrongOnly) {
+      const graded = state[q.id] !== undefined;
+      const correct = graded && gradeQuestion(q, state[q.id]);
+      if (!gradedOnce || correct) return;
+    }
+
+    if (q.chapter !== currentChapter) {
+      currentChapter = q.chapter;
+      const h = document.createElement('h2');
+      h.className = 'chapter';
+      h.textContent = currentChapter;
+      quizRoot.appendChild(h);
+    }
+
+    const div = document.createElement('div');
+    div.className = 'q';
+    div.id = 'qdiv_' + q.id;
+
+    const num = document.createElement('div');
+    num.className = 'qnum';
+    num.innerHTML = (idx+1) + '. <span class="level-badge">' + q.level + '</span>';
+    div.appendChild(num);
+
+    const qt = document.createElement('div');
+    qt.className = 'qtext';
+    qt.textContent = q.question;
+    div.appendChild(qt);
+
+    if (q.diagram) {
+      const dgm = document.createElement('div');
+      dgm.className = 'diagram';
+      dgm.innerHTML = q.diagram;
+      div.appendChild(dgm);
+    }
+
+    if (q.type === 'single' || q.type === 'truefalse') {
+      const ol = document.createElement('ol');
+      ol.className = 'opts';
+      ol.style.listStyle = 'none';
+      q.options.forEach((opt, oi) => {
+        const li = document.createElement('li');
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = q.id;
+        input.value = oi;
+        if (state[q.id] === oi) input.checked = true;
+        input.addEventListener('change', () => { state[q.id] = oi; updateProgress(); });
+        label.appendChild(input);
+        const span = document.createElement('span');
+        span.textContent = (oi+1) + '. ' + opt;
+        label.appendChild(span);
+        li.appendChild(label);
+        ol.appendChild(li);
+      });
+      div.appendChild(ol);
+    } else if (q.type === 'multi') {
+      const ol = document.createElement('ol');
+      ol.className = 'opts';
+      ol.style.listStyle = 'none';
+      if (!Array.isArray(state[q.id])) state[q.id] = [];
+      q.options.forEach((opt, oi) => {
+        const li = document.createElement('li');
+        const label = document.createElement('label');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = oi;
+        if (state[q.id].includes(oi)) input.checked = true;
+        input.addEventListener('change', () => {
+          if (input.checked) state[q.id].push(oi);
+          else state[q.id] = state[q.id].filter(v=>v!==oi);
+          updateProgress();
+        });
+        label.appendChild(input);
+        const span = document.createElement('span');
+        span.textContent = (oi+1) + '. ' + opt;
+        label.appendChild(span);
+        li.appendChild(label);
+        ol.appendChild(li);
+      });
+      div.appendChild(ol);
+    } else if (q.type === 'short') {
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.placeholder = '정답을 입력하세요';
+      input.value = state[q.id] || '';
+      input.addEventListener('input', () => { state[q.id] = input.value; updateProgress(); });
+      div.appendChild(input);
+    }
+
+    const resultTag = document.createElement('div');
+    resultTag.className = 'result-tag';
+    resultTag.id = 'result_' + q.id;
+    div.appendChild(resultTag);
+
+    const expl = document.createElement('div');
+    expl.className = 'explanation';
+    expl.id = 'expl_' + q.id;
+    expl.textContent = '해설: ' + q.explanation;
+    div.appendChild(expl);
+
+    quizRoot.appendChild(div);
+  });
+
+  if (gradedOnce) applyGradingStyles();
+}
+
+function gradeQuestion(q, userAnswer) {
+  if (userAnswer === undefined) return false;
+  if (q.type === "single" || q.type === "truefalse") {
+    return userAnswer === q.answer;
+  }
+  if (q.type === "multi") {
+    if (!Array.isArray(userAnswer)) return false;
+    const a = [...userAnswer].sort().join(",");
+    const b = [...q.answer].sort().join(",");
+    return a === b;
+  }
+  if (q.type === "short") {
+    const norm = (s) => (s||"").trim().toLowerCase().replace(/\s+/g, "");
+    const ua = norm(userAnswer || "");
+    if (ua === "") return false;
+    return q.answerKeywords.some(k => norm(k) === ua);
+  }
+  return false;
+}
+
+function updateProgress() {
+  const answered = QUESTIONS.filter(q => {
+    const v = state[q.id];
+    if (v === undefined) return false;
+    if (Array.isArray(v)) return v.length > 0;
+    if (typeof v === 'string') return v.trim() !== '';
+    return true;
+  }).length;
+  document.getElementById('progressText').textContent = answered + ' / ' + QUESTIONS.length + ' 풀이';
+  document.getElementById('progressFill').style.width = (answered / QUESTIONS.length * 100) + '%';
+}
+
+function applyGradingStyles() {
+  let correctCount = 0;
+  QUESTIONS.forEach(q => {
+    const div = document.getElementById('qdiv_' + q.id);
+    if (!div) return;
+    const correct = gradeQuestion(q, state[q.id]);
+    if (correct) correctCount++;
+    div.classList.add('graded');
+    div.classList.toggle('correct', correct);
+    div.classList.toggle('wrong', !correct);
+    const tag = document.getElementById('result_' + q.id);
+    if (tag) {
+      tag.textContent = correct ? '✅ 정답입니다' : '❌ 오답입니다';
+      tag.className = 'result-tag ' + (correct ? 'correct' : 'wrong');
+    }
+  });
+  const score = Math.round(correctCount / QUESTIONS.length * 100);
+  const scoreBox = document.getElementById('scoreBox');
+  scoreBox.style.display = 'block';
+  scoreBox.textContent = '총점: ' + score + '점  (' + correctCount + ' / ' + QUESTIONS.length + ' 문항 정답)';
+  return { score, correctCount };
+}
+
+document.getElementById('gradeBtn').addEventListener('click', () => {
+  gradedOnce = true;
+  showWrongOnly = false;
+  render();
+  const result = applyGradingStyles();
+  window.scrollTo({top:0, behavior:'smooth'});
+
+  const name = document.getElementById('studentName').value.trim() || '이름없음';
+  const wrongNums = [];
+  QUESTIONS.forEach((q, idx) => {
+    if (!gradeQuestion(q, state[q.id])) wrongNums.push(idx + 1);
+  });
+  submitToSheet(name, result.score, result.correctCount, QUESTIONS.length, wrongNums.join(','));
+});
+
+document.getElementById('reviewWrongBtn').addEventListener('click', () => {
+  if (!gradedOnce) { alert('먼저 채점하기를 눌러주세요.'); return; }
+  showWrongOnly = !showWrongOnly;
+  document.getElementById('reviewWrongBtn').textContent = showWrongOnly ? '전체 문제 보기' : '틀린 문제만 보기';
+  render();
+});
+
+document.getElementById('resetBtn').addEventListener('click', () => {
+  if (!confirm('모든 답안을 초기화하고 다시 푸시겠습니까?')) return;
+  Object.keys(state).forEach(k => delete state[k]);
+  gradedOnce = false;
+  showWrongOnly = false;
+  document.getElementById('scoreBox').style.display = 'none';
+  document.getElementById('reviewWrongBtn').textContent = '틀린 문제만 보기';
+  render();
+  updateProgress();
+});
+
+chapterFilter.addEventListener('change', render);
+
+// initial render
+render();
+updateProgress();
+
+// ---- 자동 테스트: 전체 정답 입력 시 100점인지 콘솔에서 확인 ----
+function selfTest() {
+  const testState = {};
+  QUESTIONS.forEach(q => {
+    if (q.type === 'single' || q.type === 'truefalse') testState[q.id] = q.answer;
+    else if (q.type === 'multi') testState[q.id] = q.answer;
+    else if (q.type === 'short') testState[q.id] = q.answerKeywords[0];
+  });
+  let correct = 0;
+  QUESTIONS.forEach(q => { if (gradeQuestion(q, testState[q.id])) correct++; });
+  console.log('[자동검수] 전체 정답 입력 시 점수:', Math.round(correct/QUESTIONS.length*100), '점 (', correct, '/', QUESTIONS.length, ')');
+}
+selfTest();
+</script>
+</body>
+</html>
