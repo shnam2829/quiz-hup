@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>남박사코딩로봇학원 - 방학특강 시간 조사</title>
+<style>
+  :root {
+    --bg: #F3F6FB;
+    --surface: #FFFFFF;
+    --surface-alt: #EAF0FA;
+    --primary: #2C4A7C;
+    --primary-dark: #1F3660;
+    --primary-tint: #E4ECF8;
+    --accent: #E0983B;
+    --accent-dark: #C97F26;
+    --success: #2F9E6E;
+    --success-bg: #E4F5EC;
+    --danger: #D64550;
+    --danger-bg: #FBEAEC;
+    --text: #1F2937;
+    --text-muted: #667085;
+    --border: #DCE3EE;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 14px rgba(44,74,124,0.10);
+    --font: -apple-system, BlinkMacSystemFont, "Malgun Gothic", "Apple SD Gothic Neo", "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .hero { padding: 18px 4px 22px; }
+  .eyebrow {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--primary);
+    background: var(--primary-tint);
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin-bottom: 10px;
+  }
+  h1 { font-size: 21px; font-weight: 800; margin: 0 0 8px; color: var(--primary-dark); letter-spacing: -0.01em; }
+  .sub { margin: 0; color: var(--text-muted); font-size: 14px; }
+
+  .card {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 18px;
+  }
+
+  .field-group { margin-bottom: 26px; }
+  .field-group:last-of-type { margin-bottom: 18px; }
+  .label { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 10px; display:block; }
+  .label-sm { font-size: 12px; font-weight: 600; color: var(--text-muted); display:block; margin-bottom: 4px; }
+  .req { color: var(--danger); }
+  .hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+  input[type="text"], input[type="date"], input[type="password"], textarea {
+    width: 100%;
+    font-family: var(--font);
+    font-size: 15px;
+    padding: 11px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    outline: none;
+  }
+  input:focus-visible, textarea:focus-visible, button:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+  textarea { resize: vertical; min-height: 64px; margin-top: 10px; }
+  .hidden { display: none !important; }
+
+  .row-inline { display: flex; gap: 8px; }
+  .row-inline input { flex: 1; }
+  .btn-ghost {
+    white-space: nowrap;
+    padding: 0 16px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--primary);
+    background: var(--surface);
+    color: var(--primary);
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { background: var(--primary-tint); }
+
+  .field-error { color: var(--danger); font-size: 12px; margin-top: 6px; min-height: 16px; }
+
+  /* Timetable grid - signature element */
+  .timetable {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .day-col {
+    flex: 1 0 62px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .day-name {
+    text-align: center;
+    font-weight: 800;
+    font-size: 13px;
+    color: var(--primary-dark);
+    background: var(--surface-alt);
+    border-radius: var(--radius-sm);
+    padding: 6px 0;
+    margin-bottom: 2px;
+  }
+  .slot-chip {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    min-height: 46px;
+    padding: 5px 3px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
+  }
+  .slot-chip:active { transform: scale(0.97); }
+  .slot-part { font-size: 12.5px; font-weight: 700; color: var(--text); }
+  .slot-time { font-size: 10px; color: var(--text-muted); line-height: 1.2; text-align: center; }
+  .slot-chip.selected {
+    background: var(--success-bg);
+    border-color: var(--success);
+  }
+  .slot-chip.selected .slot-part { color: var(--success); }
+  .slot-chip.selected .slot-part::before { content: "✓ "; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip-choice {
+    padding: 10px 16px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+  }
+  .chip-choice.selected {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+  }
+
+  .travel-dates { margin-top: 12px; }
+  .date-row { display: flex; gap: 10px; margin-bottom: 8px; }
+  .date-row > div { flex: 1; }
+
+  .btn-submit {
+    width: 100%;
+    padding: 15px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--accent);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  .btn-submit:hover { background: var(--accent-dark); }
+  .btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  .toast {
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--success-bg);
+    color: var(--success);
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+    display: none;
+  }
+  .toast.show { display: block; }
+  .toast.error { background: var(--danger-bg); color: var(--danger); }
+
+  .admin-toggle { text-align: center; margin-top: 22px; }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 13px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 8px;
+  }
+
+  .pin-box {
+    max-width: 320px;
+    margin: 10px auto 0;
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  .pin-box input { flex: 1; }
+
+  .admin-panel {
+    margin-top: 18px;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 18px;
+  }
+  .admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 8px; }
+  .admin-title { font-size: 16px; font-weight: 800; color: var(--primary-dark); }
+  .admin-meta { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; }
+  .refresh-btn {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    background: var(--surface);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    cursor: pointer;
+  }
+
+  .summary-row { margin-bottom: 8px; }
+  .summary-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .summary-label .count { color: var(--primary); }
+  .summary-track { background: var(--surface-alt); border-radius: 999px; height: 10px; overflow: hidden; }
+  .summary-fill { background: var(--primary); height: 100%; border-radius: 999px; }
+  .summary-row.top .summary-fill { background: var(--success); }
+  .summary-row.top .summary-label .count { color: var(--success); }
+  .summary-row.top .summary-label::after { content: " ★"; color: var(--accent); }
+
+  .flag-section { margin-top: 20px; }
+  .flag-title { font-size: 13px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  .flag-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+  .flag-list li { padding: 8px 10px; background: var(--surface-alt); border-radius: var(--radius-sm); margin-bottom: 6px; }
+  .flag-empty { font-size: 13px; color: var(--text-muted); }
+
+  .filter-input { margin: 18px 0 10px; }
+
+  .table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  th, td { padding: 7px 8px; border-bottom: 1px solid var(--border); text-align: center; white-space: nowrap; }
+  th { background: var(--surface-alt); color: var(--primary-dark); font-weight: 700; position: sticky; top: 0; }
+  td.name-cell { text-align: left; font-weight: 700; }
+  .yes-mark { color: var(--success); font-weight: 800; }
+  .no-mark { color: var(--border); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+  .badge.need { background: var(--danger-bg); color: var(--danger); }
+  .badge.noneed { background: var(--success-bg); color: var(--success); }
+  .badge.unsure { background: var(--surface-alt); color: var(--text-muted); }
+
+  .empty-state { text-align: center; color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+  .admin-note { font-size: 11.5px; color: var(--text-muted); margin-top: 16px; border-top: 1px dashed var(--border); padding-top: 12px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="hero">
+    <span class="eyebrow">남박사코딩로봇학원</span>
+    <h1>방학 특강 · 2학기 준비 사전 조사</h1>
+    <p class="sub">학생 이름과 가능한 시간대를 체크해주시면 바로 반영돼요. 전화 상담 없이 이 화면에서 한번에 확인 가능합니다.</p>
+  </div>
+
+  <div class="card" id="formCard">
+
+    <div class="field-group">
+      <label class="label" for="nameInput">학생 이름 <span class="req">*</span></label>
+      <div class="row-inline">
+        <input id="nameInput" type="text" placeholder="예: 김민준" />
+        <button class="btn-ghost" id="loadBtn" type="button">불러오기</button>
+      </div>
+      <div class="hint">동명이인이 있다면 이름 뒤에 학년을 붙여주세요 (예: 김민준6학년). "불러오기"를 누르면 이전에 제출한 내용을 수정할 수 있어요.</div>
+      <div class="field-error" id="nameError"></div>
+    </div>
+
+    <div class="field-group">
+      <label class="label" for="gradeInput">학년 / 반 (선택)</label>
+      <input id="gradeInput" type="text" placeholder="예: 초6, 중2" />
+    </div>
+
+    <div class="field-group">
+      <div class="label">방학특강 및 수업 가능 시간대 <span class="req">*</span> <span style="font-weight:400;color:var(--text-muted);">(가능한 시간을 모두 눌러주세요)</span></div>
+      <div class="timetable" id="timetable"></div>
+      <button type="button" class="chip-choice" id="noSlotBtn" style="margin-top:10px;width:100%;">제시된 시간에 가능한 때가 없어요 (직접 입력할게요)</button>
+      <textarea id="customTimeNote" class="hidden" placeholder="가능하신 요일과 시간을 직접 적어주세요 (예: 화요일 저녁 7시 이후, 일요일 오전 등)"></textarea>
+    </div>
+
+    <div class="field-group">
+      <div class="label">2학기 중간고사 · 기말고사 결석 보강 수업이 필요하신가요?</div>
+      <div class="hint" style="margin-top:-6px;margin-bottom:10px;color:var(--accent);font-weight:700;">중·고등부는 필수로 체크해주세요</div>
+      <div class="chip-row" id="examChoice">
+        <button data-value="필요" class="chip-choice" type="button">필요해요</button>
+        <button data-value="불필요" class="chip-choice" type="button">필요없어요</button>
+      </div>
+      <textarea id="examNote" class="hidden" placeholder="원하는 과목과 시간대가 있으면 적어주세요 (예: 고등부 정보내신특강, 파이썬특강, 아두이노 융합특강)"></textarea>
+      <div id="examTimetableWrap" class="hidden" style="margin-top:14px;">
+        <div class="label" style="margin-bottom:8px;">보강 수업 가능 시간대 <span class="req">*</span> <span style="font-weight:400;color:var(--text-muted);">(가능한 시간을 모두 눌러주세요)</span></div>
+        <div class="timetable" id="examTimetable"></div>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <div class="label">방학 중 휴가 일정으로 결석이 있나요?</div>
+      <div class="chip-row" id="travelChoice">
+        <button data-value="있음" class="chip-choice" type="button">있어요</button>
+        <button data-value="없음" class="chip-choice" type="button">없어요</button>
+      </div>
+      <div id="travelDates" class="travel-dates hidden">
+        <div class="date-row">
+          <div><label class="label-sm" for="travelStart">시작일</label><input type="date" id="travelStart" /></div>
+          <div><label class="label-sm" for="travelEnd">종료일</label><input type="date" id="travelEnd" /></div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-submit" id="submitBtn" type="button">제출하기</button>
+    <div class="toast" id="toast"></div>
+  </div>
+
+  <div class="admin-toggle" id="adminToggleWrap">
+    <button class="link-btn" id="adminToggleBtn" type="button">선생님이신가요? 결과 보기</button>
+  </div>
+  <div class="pin-box hidden" id="pinBox">
+    <input type="password" id="pinInput" placeholder="비밀번호" />
+    <button class="btn-ghost" id="pinSubmit" type="button">확인</button>
+  </div>
+  <div class="field-error" id="pinError" style="text-align:center;"></div>
+
+  <div class="admin-panel hidden" id="adminPanel">
+    <div class="admin-header">
+      <div class="admin-title">제출 현황</div>
+      <button class="refresh-btn" id="refreshBtn" type="button">↻ 새로고침</button>
+    </div>
+    <div class="admin-meta" id="adminMeta">불러오는 중...</div>
+
+    <div id="summarySection"></div>
+
+    <div class="flag-section">
+      <div class="flag-title">🧳 여행 등 결석 예정</div>
+      <ul class="flag-list" id="travelFlagList"></ul>
+    </div>
+    <div class="flag-section">
+      <div class="flag-title">📝 2학기 보강 필요</div>
+      <ul class="flag-list" id="examFlagList"></ul>
+      <div id="examSummarySection" style="margin-top:10px;"></div>
+    </div>
+    <div class="flag-section">
+      <div class="flag-title">✍️ 직접 입력한 시간대</div>
+      <ul class="flag-list" id="customTimeFlagList"></ul>
+    </div>
+
+    <input class="filter-input" id="filterInput" type="text" placeholder="이름으로 검색..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;" />
+
+    <div class="table-wrap">
+      <table id="responseTable">
+        <thead id="tableHead"></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="admin-note">참고: 이 링크에 접속하는 누구나 비밀번호를 입력하면 전체 응답을 볼 수 있어요. 비밀번호는 코드 안 ADMIN_PIN 값을 바꾸면 변경할 수 있습니다.</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var ADMIN_PIN = "1234"; // 필요하면 이 값을 바꿔서 비밀번호를 변경하세요
+
+  // 구글 Apps Script 배포 후 나오는 웹앱 주소를 여기에 붙여넣으세요
+  // 예: "https://script.google.com/macros/s/AKfycb.../exec"
+  var APPS_SCRIPT_URL = "";
+
+  function isConfigured_(){
+    return typeof APPS_SCRIPT_URL === 'string' && APPS_SCRIPT_URL.indexOf('https://') === 0;
+  }
+
+  var SLOTS = [
+    {key:'tue_1', day:'화', start:'9:30', end:'11:00'},
+    {key:'tue_2', day:'화', start:'11:00', end:'12:30'},
+    {key:'tue_3', day:'화', start:'2:00', end:'3:30'},
+    {key:'tue_4', day:'화', start:'3:30', end:'5:00'},
+    {key:'wed_1', day:'수', start:'9:30', end:'11:00'},
+    {key:'wed_2', day:'수', start:'11:00', end:'12:30'},
+    {key:'wed_3', day:'수', start:'2:00', end:'3:30'},
+    {key:'wed_4', day:'수', start:'3:30', end:'5:00'},
+    {key:'thu_1', day:'목', start:'9:30', end:'11:00'},
+    {key:'thu_2', day:'목', start:'11:00', end:'12:30'},
+    {key:'thu_3', day:'목', start:'2:00', end:'3:30'},
+    {key:'thu_4', day:'목', start:'3:30', end:'5:00'},
+    {key:'fri_1', day:'금', start:'2:00', end:'3:30'},
+    {key:'fri_2', day:'금', start:'3:30', end:'5:00'},
+    {key:'sat_1', day:'토', start:'9:00', end:'10:30'},
+    {key:'sat_2', day:'토', start:'10:30', end:'12:00'},
+    {key:'sat_3', day:'토', start:'1:30', end:'3:00'},
+    {key:'sat_4', day:'토', start:'3:00', end:'4:30'}
+  ];
+  var DAY_GROUPS = [
+    {name:'화', parts:['tue_1','tue_2','tue_3','tue_4']},
+    {name:'수', parts:['wed_1','wed_2','wed_3','wed_4']},
+    {name:'목', parts:['thu_1','thu_2','thu_3','thu_4']},
+    {name:'금', parts:['fri_1','fri_2']},
+    {name:'토', parts:['sat_1','sat_2','sat_3','sat_4']}
+  ];
+
+  var slotState = {};
+  SLOTS.forEach(function(s){ slotState[s.key] = false; });
+  var examSlotState = {};
+  SLOTS.forEach(function(s){ examSlotState[s.key] = false; });
+  var examChoiceValue = null;
+  var travelChoiceValue = null;
+  var noAvailableSlot = false;
+  var allResponses = [];
+
+  function $(id){ return document.getElementById(id); }
+  function esc(str){
+    return String(str == null ? '' : str).replace(/[&<>"']/g, function(m){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m];
+    });
+  }
+  function showToast(msg, isError){
+    var t = $('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isError ? ' error' : '');
+    setTimeout(function(){ t.className = 'toast'; }, 4000);
+  }
+
+  function renderTimetableInto(containerId, state){
+    var el = $(containerId);
+    el.innerHTML = DAY_GROUPS.map(function(d){
+      var chips = d.parts.map(function(k){
+        var s = SLOTS.filter(function(x){ return x.key === k; })[0];
+        return '<button type="button" class="slot-chip" data-key="' + k + '" aria-pressed="false">' +
+          '<span class="slot-part">' + s.start + '</span>' +
+          '<span class="slot-time">~' + s.end + '</span>' +
+          '</button>';
+      }).join('');
+      return '<div class="day-col"><div class="day-name">' + d.name + '</div>' + chips + '</div>';
+    }).join('');
+
+    el.querySelectorAll('.slot-chip').forEach(function(chip){
+      chip.addEventListener('click', function(){
+        var key = chip.getAttribute('data-key');
+        state[key] = !state[key];
+        chip.classList.toggle('selected', state[key]);
+        chip.setAttribute('aria-pressed', String(state[key]));
+      });
+    });
+  }
+
+  function setSlotUIFor(containerId, state){
+    SLOTS.forEach(function(s){
+      var chip = document.querySelector('#' + containerId + ' .slot-chip[data-key="' + s.key + '"]');
+      if(chip){
+        chip.classList.toggle('selected', !!state[s.key]);
+        chip.setAttribute('aria-pressed', String(!!state[s.key]));
+      }
+    });
+  }
+
+  function wireChipRow(rowId, onSelect){
+    var row = $(rowId);
+    row.querySelectorAll('.chip-choice').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        row.querySelectorAll('.chip-choice').forEach(function(b){ b.classList.remove('selected'); });
+        btn.classList.add('selected');
+        onSelect(btn.getAttribute('data-value'));
+      });
+    });
+  }
+
+  function selectChipValue(rowId, value){
+    var row = $(rowId);
+    row.querySelectorAll('.chip-choice').forEach(function(b){
+      b.classList.toggle('selected', b.getAttribute('data-value') === value);
+    });
+  }
+
+  wireChipRow('examChoice', function(v){
+    examChoiceValue = v;
+    if(v === '필요'){
+      $('examNote').classList.remove('hidden');
+      $('examTimetableWrap').classList.remove('hidden');
+    } else {
+      $('examNote').classList.add('hidden');
+      $('examTimetableWrap').classList.add('hidden');
+      SLOTS.forEach(function(s){ examSlotState[s.key] = false; });
+      setSlotUIFor('examTimetable', examSlotState);
+    }
+  });
+  wireChipRow('travelChoice', function(v){
+    travelChoiceValue = v;
+    if(v === '있음'){ $('travelDates').classList.remove('hidden'); }
+    else { $('travelDates').classList.add('hidden'); }
+  });
+
+  $('noSlotBtn').addEventListener('click', function(){
+    noAvailableSlot = !noAvailableSlot;
+    $('noSlotBtn').classList.toggle('selected', noAvailableSlot);
+    $('customTimeNote').classList.toggle('hidden', !noAvailableSlot);
+    if(noAvailableSlot){ $('customTimeNote').focus(); }
+  });
+
+  $('loadBtn').addEventListener('click', async function(){
+    var name = $('nameInput').value.trim();
+    $('nameError').textContent = '';
+    if(!name){ $('nameError').textContent = '먼저 학생 이름을 입력해주세요.'; return; }
+    if(!isConfigured_()){ showToast('아직 저장 주소가 설정되지 않았어요. 관리자에게 문의해주세요.', true); return; }
+    try {
+      var res = await fetch(APPS_SCRIPT_URL + '?action=lookup&name=' + encodeURIComponent(name));
+      var result = await res.json();
+      if(result && result.found && result.data){
+        var data = result.data;
+        $('gradeInput').value = data.grade || '';
+        SLOTS.forEach(function(s){ slotState[s.key] = !!(data.slots && data.slots[s.key]); });
+        setSlotUIFor('timetable', slotState);
+        noAvailableSlot = !!data.noAvailableSlot;
+        $('noSlotBtn').classList.toggle('selected', noAvailableSlot);
+        $('customTimeNote').classList.toggle('hidden', !noAvailableSlot);
+        $('customTimeNote').value = data.customTimeNote || '';
+        if(data.examMakeup){
+          examChoiceValue = data.examMakeup.needed;
+          selectChipValue('examChoice', examChoiceValue);
+          $('examNote').value = data.examMakeup.note || '';
+          SLOTS.forEach(function(s){ examSlotState[s.key] = !!(data.examMakeup.slots && data.examMakeup.slots[s.key]); });
+          setSlotUIFor('examTimetable', examSlotState);
+          if(examChoiceValue === '필요'){
+            $('examNote').classList.remove('hidden');
+            $('examTimetableWrap').classList.remove('hidden');
+          } else {
+            $('examNote').classList.add('hidden');
+            $('examTimetableWrap').classList.add('hidden');
+          }
+        }
+        if(data.travel){
+          travelChoiceValue = data.travel.planned;
+          selectChipValue('travelChoice', travelChoiceValue);
+          if(travelChoiceValue === '있음'){
+            $('travelDates').classList.remove('hidden');
+            $('travelStart').value = data.travel.start || '';
+            $('travelEnd').value = data.travel.end || '';
+          } else {
+            $('travelDates').classList.add('hidden');
+          }
+        }
+        showToast('이전 제출 내용을 불러왔어요. 수정 후 다시 제출해주세요.');
+      } else {
+        showToast('제출 기록이 없어요. 새로 입력해주세요.');
+      }
+    } catch(e){
+      showToast('불러오기에 실패했어요. 인터넷 연결을 확인해주세요.', true);
+    }
+  });
+
+  $('submitBtn').addEventListener('click', async function(){
+    var name = $('nameInput').value.trim();
+    $('nameError').textContent = '';
+    if(!name){ $('nameError').textContent = '학생 이름을 입력해주세요.'; return; }
+
+    var payload = {
+      name: name,
+      grade: $('gradeInput').value.trim(),
+      slots: Object.assign({}, slotState),
+      noAvailableSlot: noAvailableSlot,
+      customTimeNote: $('customTimeNote').value.trim(),
+      examMakeup: { needed: examChoiceValue || '미응답', note: $('examNote').value.trim(), slots: Object.assign({}, examSlotState) },
+      travel: {
+        planned: travelChoiceValue || '미응답',
+        start: $('travelStart').value || '',
+        end: $('travelEnd').value || ''
+      },
+      submittedAt: new Date().toISOString()
+    };
+
+    var btn = $('submitBtn');
+    if(!isConfigured_()){ showToast('아직 저장 주소가 설정되지 않았어요. 관리자에게 문의해주세요.', true); return; }
+    btn.disabled = true; btn.textContent = '제출 중...';
+    try {
+      var res = await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      var result = await res.json();
+      if(result && result.success){
+        showToast('제출 완료되었습니다! 감사합니다 ✅');
+      } else {
+        showToast('제출에 실패했어요. 다시 시도해주세요.', true);
+      }
+    } catch(e){
+      showToast('제출 중 오류가 발생했어요. 인터넷 연결을 확인해주세요.', true);
+    } finally {
+      btn.disabled = false; btn.textContent = '제출하기';
+    }
+  });
+
+  // ---- Admin panel ----
+  $('adminToggleBtn').addEventListener('click', function(){
+    $('pinBox').classList.toggle('hidden');
+    $('pinInput').focus();
+  });
+
+  $('pinSubmit').addEventListener('click', checkPin);
+  $('pinInput').addEventListener('keydown', function(e){ if(e.key === 'Enter') checkPin(); });
+
+  function checkPin(){
+    if($('pinInput').value === ADMIN_PIN){
+      $('pinBox').classList.add('hidden');
+      $('adminToggleWrap').classList.add('hidden');
+      $('pinError').textContent = '';
+      $('adminPanel').classList.remove('hidden');
+      loadAdminData();
+    } else {
+      $('pinError').textContent = '비밀번호가 올바르지 않습니다.';
+    }
+  }
+
+  $('refreshBtn').addEventListener('click', loadAdminData);
+  $('filterInput').addEventListener('input', function(){
+    var q = $('filterInput').value.trim().toLowerCase();
+    document.querySelectorAll('#tableBody tr').forEach(function(tr){
+      var name = tr.getAttribute('data-name') || '';
+      tr.style.display = name.indexOf(q) === -1 ? 'none' : '';
+    });
+  });
+
+  async function loadAdminData(){
+    $('adminMeta').textContent = '불러오는 중...';
+    if(!isConfigured_()){
+      $('adminMeta').textContent = '저장 주소가 설정되지 않았어요. 코드 안 APPS_SCRIPT_URL 값을 채워주세요.';
+      return;
+    }
+    try {
+      var res = await fetch(APPS_SCRIPT_URL + '?action=all');
+      var result = await res.json();
+      var responses = (result && result.responses) || [];
+      allResponses = responses;
+      renderAdmin(responses);
+    } catch(e){
+      $('adminMeta').textContent = '데이터를 불러오지 못했어요. 새로고침을 눌러 다시 시도해주세요.';
+    }
+  }
+
+  function renderAdmin(responses){
+    var total = responses.length;
+    $('adminMeta').textContent = '총 ' + total + '명 제출 · 마지막 새로고침 ' + new Date().toLocaleTimeString('ko-KR');
+
+    if(total === 0){
+      $('summarySection').innerHTML = '<div class="empty-state">아직 제출된 응답이 없습니다.</div>';
+      $('travelFlagList').innerHTML = '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+      $('examFlagList').innerHTML = '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+      $('examSummarySection').innerHTML = '';
+      $('customTimeFlagList').innerHTML = '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+      $('tableHead').innerHTML = '';
+      $('tableBody').innerHTML = '';
+      return;
+    }
+
+    // Summary bars
+    var counts = {};
+    SLOTS.forEach(function(s){
+      counts[s.key] = responses.filter(function(r){ return r.slots && r.slots[s.key]; }).length;
+    });
+    var maxCount = Math.max.apply(null, SLOTS.map(function(s){ return counts[s.key]; }));
+
+    $('summarySection').innerHTML = SLOTS.map(function(s){
+      var c = counts[s.key];
+      var pct = total > 0 ? Math.round((c/total)*100) : 0;
+      var isTop = c === maxCount && c > 0;
+      var label = s.day + ' ' + s.start + '~' + s.end;
+      return '<div class="summary-row' + (isTop ? ' top' : '') + '">' +
+        '<div class="summary-label"><span>' + esc(label) + '</span><span class="count">' + c + '명 (' + pct + '%)</span></div>' +
+        '<div class="summary-track"><div class="summary-fill" style="width:' + pct + '%"></div></div>' +
+        '</div>';
+    }).join('');
+
+    // Flags
+    var travelList = responses.filter(function(r){ return r.travel && r.travel.planned === '있음'; });
+    $('travelFlagList').innerHTML = travelList.length ? travelList.map(function(r){
+      var period = (r.travel.start || '?') + ' ~ ' + (r.travel.end || '?');
+      var note = r.travel.note ? (' · ' + esc(r.travel.note)) : '';
+      return '<li><strong>' + esc(r.name) + '</strong> · ' + esc(period) + esc(note) + '</li>';
+    }).join('') : '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+
+    var examList = responses.filter(function(r){ return r.examMakeup && r.examMakeup.needed === '필요'; });
+    $('examFlagList').innerHTML = examList.length ? examList.map(function(r){
+      var note = r.examMakeup.note ? (' · ' + esc(r.examMakeup.note)) : '';
+      return '<li><strong>' + esc(r.name) + '</strong>' + esc(note) + '</li>';
+    }).join('') : '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+
+    if(examList.length){
+      $('examSummarySection').innerHTML = '<div class="hint" style="margin-bottom:6px;">보강 수업 가능 시간대 (보강 필요 학생 ' + examList.length + '명 중)</div>' + SLOTS.map(function(s){
+        var c = examList.filter(function(r){ return r.examMakeup.slots && r.examMakeup.slots[s.key]; }).length;
+        var pct = Math.round((c/examList.length)*100);
+        var label = s.day + ' ' + s.start + '~' + s.end;
+        return '<div class="summary-row"><div class="summary-label"><span>' + esc(label) + '</span><span class="count">' + c + '명 (' + pct + '%)</span></div>' +
+          '<div class="summary-track"><div class="summary-fill" style="width:' + pct + '%"></div></div></div>';
+      }).join('');
+    } else {
+      $('examSummarySection').innerHTML = '';
+    }
+
+    var customTimeList = responses.filter(function(r){ return r.noAvailableSlot && r.customTimeNote; });
+    $('customTimeFlagList').innerHTML = customTimeList.length ? customTimeList.map(function(r){
+      return '<li><strong>' + esc(r.name) + '</strong> · ' + esc(r.customTimeNote) + '</li>';
+    }).join('') : '<li class="flag-empty" style="background:none;padding:2px;">없음</li>';
+
+    // Table
+    var fixedHeadStart = ['이름','학년'].map(function(h){ return '<th>' + esc(h) + '</th>'; }).join('');
+    var slotHeadHtml = SLOTS.map(function(s){
+      return '<th title="' + esc(s.day + ' ' + s.start + '~' + s.end) + '">' + esc(s.day + ' ' + s.start) + '</th>';
+    }).join('');
+    var fixedHeadEnd = ['보강','보강메모','결석','결석기간','결석메모','직접입력'].map(function(h){ return '<th>' + esc(h) + '</th>'; }).join('');
+    $('tableHead').innerHTML = '<tr>' + fixedHeadStart + slotHeadHtml + fixedHeadEnd + '</tr>';
+
+    $('tableBody').innerHTML = responses.map(function(r){
+      var cells = '<td class="name-cell">' + esc(r.name) + '</td>';
+      cells += '<td>' + esc(r.grade || '-') + '</td>';
+      SLOTS.forEach(function(s){
+        var on = r.slots && r.slots[s.key];
+        cells += '<td class="' + (on ? 'yes-mark' : 'no-mark') + '">' + (on ? '✓' : '–') + '</td>';
+      });
+      var examNeeded = (r.examMakeup && r.examMakeup.needed) || '미응답';
+      var examBadgeClass = examNeeded === '필요' ? 'need' : (examNeeded === '불필요' ? 'noneed' : 'unsure');
+      cells += '<td><span class="badge ' + examBadgeClass + '">' + esc(examNeeded) + '</span></td>';
+      cells += '<td>' + esc((r.examMakeup && r.examMakeup.note) || '-') + '</td>';
+      var travelPlanned = (r.travel && r.travel.planned) || '미응답';
+      cells += '<td>' + esc(travelPlanned) + '</td>';
+      var period = (r.travel && r.travel.planned === '있음') ? (esc(r.travel.start||'?') + '~' + esc(r.travel.end||'?')) : '-';
+      cells += '<td>' + period + '</td>';
+      cells += '<td>' + esc((r.travel && r.travel.note) || '-') + '</td>';
+      cells += '<td>' + esc((r.noAvailableSlot && r.customTimeNote) || '-') + '</td>';
+      return '<tr data-name="' + esc(r.name).toLowerCase() + '">' + cells + '</tr>';
+    }).join('');
+  }
+
+  renderTimetableInto('timetable', slotState);
+  renderTimetableInto('examTimetable', examSlotState);
+})();
+</script>
+</body>
+</html>
